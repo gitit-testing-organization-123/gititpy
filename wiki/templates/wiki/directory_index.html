@@ -6,11 +6,7 @@
     <ul>
       {% if directory_path %}
         <li class="folder">
-          {% if parent_path %}
-            <a class="updir" href="{{ parent_url }}">..</a>
-          {% else %}
-            <a class="updir" href="{{ all_pages_url }}">..</a>
-          {% endif %}
+          <a class="updir" href="{{ parent_url }}">..</a>
         </li>
       {% endif %}
       {% for entry in entries %}

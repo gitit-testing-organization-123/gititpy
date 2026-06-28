@@ -66,7 +66,7 @@ class WikiRepository:
 
     def ensure_ready(self):
         self.root.mkdir(parents=True, exist_ok=True)
-        if not self.seed_defaults:
+        if not self.seed_defaults or self.has_page_files():
             return
         for slug, content in {
             "FrontPage": DEFAULT_FRONT_PAGE,
@@ -75,6 +75,16 @@ class WikiRepository:
             path = self.page_path(slug)
             if not path.exists():
                 path.write_text(content, encoding="utf-8")
+
+    def has_page_files(self) -> bool:
+        if not self.root.exists():
+            return False
+        for path in self.root.rglob("*"):
+            if ".git" in path.parts:
+                continue
+            if path.is_file() and path.suffix in {".md", ".page"}:
+                return True
+        return False
 
     def has_git_history(self) -> bool:
         return (self.root / ".git").exists()
@@ -95,7 +105,7 @@ class WikiRepository:
 
     def page_path(self, slug: str) -> Path:
         normalized = self.normalize_slug(slug)
-        path = self.root / self.page_filename(normalized)
+        path = self.existing_page_path(slug, normalized) or self.root / self.page_filename(normalized)
         root = self.root.resolve()
         resolved_parent = path.parent.resolve()
         try:
@@ -103,6 +113,38 @@ class WikiRepository:
         except ValueError as exc:
             raise PageNameError("Page path escapes the wiki root.") from exc
         return path
+
+    def existing_page_path(self, slug: str, normalized: str) -> Path | None:
+        candidates = []
+        raw = (slug or "FrontPage").strip().strip("/")
+        if raw:
+            self.validate_path_parts(PurePosixPath(raw))
+            if PurePosixPath(raw).suffix:
+                candidates.append(self.root / raw)
+            else:
+                candidates.extend((self.root / f"{raw}.page", self.root / f"{raw}.md"))
+        normalized_path = PurePosixPath(normalized)
+        if normalized_path.suffix:
+            candidates.append(self.root / normalized_path.as_posix())
+        else:
+            candidates.extend(
+                (
+                    self.root / f"{normalized_path.as_posix()}.page",
+                    self.root / f"{normalized_path.as_posix()}.md",
+                )
+            )
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate
+        return None
+
+    def validate_path_parts(self, path: PurePosixPath):
+        if path.is_absolute() or ".." in path.parts:
+            raise PageNameError("Page names cannot be absolute or contain '..'.")
+        if any(part in {"", "."} or part.startswith(".") for part in path.parts):
+            raise PageNameError("Page names cannot contain empty or hidden path parts.")
+        if path.parts and path.parts[0].startswith("_"):
+            raise PageNameError("Page names cannot start with '_'.")
 
     def directory_path(self, slug: str) -> Path:
         if slug in {"", "."}:

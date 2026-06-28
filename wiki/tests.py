@@ -1,3 +1,5 @@
+import json
+import os
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -97,6 +99,20 @@ toc: no
             self.assertTrue((root / "examples" / "hello.c").exists())
             self.assertFalse((root / "examples" / "hello.c.md").exists())
             self.assertIn("examples/hello.c", repo.list_pages())
+
+    def test_existing_page_file_with_spaces_and_page_suffix_round_trips(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir) / "pages"
+            root.mkdir()
+            path = root / "Gitit User’s Guide.page"
+            path.write_text("# User Guide\n", encoding="utf-8")
+            repo = WikiRepository(root)
+
+            slug = repo.page_slug_for_path(path.relative_to(root))
+
+            self.assertEqual(slug, "Gitit User’s Guide")
+            self.assertEqual(repo.read_page(slug), "# User Guide\n")
+            self.assertEqual(repo.page_path(slug), path)
 
     def test_source_page_without_magic_renders_as_code(self):
         markup = source_to_markdown("print('hello')\n", "script.py")
@@ -401,6 +417,35 @@ int main(void) {
 
             self.assertGreater(result.skipped_files, 0)
             self.assertTrue((output / ".gititpy-build.json").is_file())
+
+    def test_incremental_build_uses_content_hash_not_mtime(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / "pages"
+            output = root / "public"
+            repo = WikiRepository(wiki_root)
+            repo.write_page("FrontPage", "# Hash Front\n", "Create front")
+
+            StaticSiteBuilder(
+                config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False),
+                output_dir=output,
+            ).build()
+
+            source_path = repo.page_path("FrontPage")
+            stat_result = source_path.stat()
+            os.utime(source_path, ns=(stat_result.st_atime_ns + 1_000_000_000, stat_result.st_mtime_ns + 1_000_000_000))
+
+            with mock.patch("wiki.static_site.render_darcsit", side_effect=AssertionError("should skip")):
+                result = StaticSiteBuilder(
+                    config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False),
+                    output_dir=output,
+                ).build()
+
+            manifest = json.loads((output / ".gititpy-build.json").read_text(encoding="utf-8"))
+            item = manifest["items"]["wiki:FrontPage"]
+            self.assertGreater(result.skipped_files, 0)
+            self.assertIn("sha256", item)
+            self.assertNotIn("mtime_ns", item)
 
     def test_incremental_build_rerenders_changed_page(self):
         with tempfile.TemporaryDirectory() as tmpdir:

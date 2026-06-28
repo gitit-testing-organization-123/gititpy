@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import re
@@ -731,7 +732,7 @@ class StaticSiteBuilder:
         return {
             "kind": kind,
             "source": source.resolve().as_posix(),
-            "mtime_ns": stat_result.st_mtime_ns,
+            "sha256": file_sha256(source),
             "size": stat_result.st_size,
             "signature": self.build_signature if kind != "copy" else "copy-v1",
             "outputs": [self.relative_output_path(output) for output in outputs],
@@ -774,7 +775,7 @@ class StaticSiteBuilder:
                 template_state.append(
                     [
                         path.relative_to(root).as_posix(),
-                        stat_result.st_mtime_ns,
+                        file_sha256(path),
                         stat_result.st_size,
                     ]
                 )
@@ -796,6 +797,14 @@ class StaticSiteBuilder:
             return
         with self._counter_lock:
             print(message)
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 class StaticUrls:

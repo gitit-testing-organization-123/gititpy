@@ -69,9 +69,11 @@ python -m gititpy build --verbose
 
 Builds are incremental by default. `gititpy` writes
 `public/.gititpy-build.json` and skips page/source renders and file copies when
-the input file mtime, input size, renderer config, and expected outputs still
-match. Global indexes and directory pages are still regenerated because they are
-cheap and depend on the full tree.
+the input file content hash, input size, renderer config, and expected outputs
+still match. Global indexes and directory pages are still regenerated because
+they are cheap and depend on the full tree. This makes restored `public/`
+directories useful in CI caches, where fresh checkouts often have different
+file modification times.
 
 To ignore the manifest and rebuild from scratch:
 

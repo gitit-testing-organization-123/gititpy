@@ -1,0 +1,15 @@
+[site]
+title = "GititPy"
+base_url = ""
+mathjax_url = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
+
+[paths]
+wiki_root = "wiki-pages"
+source_root = "basilisk/src"
+output = "public"
+template_roots = ["templates"]
+static_roots = ["static"]
+
+[build]
+source = true
+jobs = 4

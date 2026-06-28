@@ -322,6 +322,107 @@ int main(void) {
             self.assertEqual(status, 0)
             self.assertIn("CLI Front", (output / "index.html").read_text(encoding="utf-8"))
 
+    def test_cli_reads_gititpy_toml(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / "content"
+            output = root / "site"
+            WikiRepository(wiki_root).write_page("FrontPage", "# Config Front\n", "Create front")
+            (root / "gititpy.toml").write_text(
+                """
+[site]
+title = "Configured Site"
+base_url = "/docs"
+
+[paths]
+wiki_root = "content"
+output = "site"
+
+[build]
+source = false
+jobs = 1
+""",
+                encoding="utf-8",
+            )
+
+            status = main(["--base-dir", str(root), "build"])
+
+            self.assertEqual(status, 0)
+            rendered = (output / "index.html").read_text(encoding="utf-8")
+            self.assertIn("Config Front", rendered)
+            self.assertIn("Configured Site", rendered)
+            self.assertIn('href="/docs/_index.html"', rendered)
+
+    def test_cli_arguments_override_gititpy_toml(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            configured_root = root / "configured"
+            override_root = root / "override"
+            output = root / "site"
+            WikiRepository(configured_root).write_page("FrontPage", "# Configured\n", "Create front")
+            WikiRepository(override_root).write_page("FrontPage", "# Overridden\n", "Create front")
+            (root / "gititpy.toml").write_text(
+                """
+[paths]
+wiki_root = "configured"
+output = "site"
+""",
+                encoding="utf-8",
+            )
+
+            status = main(
+                [
+                    "--base-dir",
+                    str(root),
+                    "--wiki-root",
+                    str(override_root),
+                    "build",
+                ]
+            )
+
+            self.assertEqual(status, 0)
+            rendered = (output / "index.html").read_text(encoding="utf-8")
+            self.assertIn("Overridden", rendered)
+            self.assertNotIn("Configured", rendered)
+
+    def test_static_build_uses_site_template_and_static_overrides(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / "pages"
+            output = root / "public"
+            template_root = root / "templates"
+            static_root = root / "static"
+            WikiRepository(wiki_root).write_page("FrontPage", "# Template Front\n", "Create front")
+            (template_root / "wiki").mkdir(parents=True)
+            (template_root / "wiki" / "page.html").write_text(
+                "<!doctype html><title>{{ wiki_title }}</title><main>{{ content_html|safe }}</main>",
+                encoding="utf-8",
+            )
+            (static_root / "wiki" / "css").mkdir(parents=True)
+            (static_root / "wiki" / "css" / "custom.css").write_text(
+                "body { color: rgb(1, 2, 3); }",
+                encoding="utf-8",
+            )
+
+            builder = StaticSiteBuilder(
+                config=SiteConfig(
+                    base_dir=root,
+                    wiki_root=wiki_root,
+                    template_roots=(template_root,),
+                    static_roots=(static_root,),
+                ),
+                output_dir=output,
+            )
+            builder.build()
+
+            rendered = (output / "index.html").read_text(encoding="utf-8")
+            self.assertIn("<main>", rendered)
+            self.assertIn("Template Front", rendered)
+            self.assertEqual(
+                (output / "static" / "wiki" / "css" / "custom.css").read_text(encoding="utf-8"),
+                "body { color: rgb(1, 2, 3); }",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

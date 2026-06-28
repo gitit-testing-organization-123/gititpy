@@ -4,19 +4,32 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from .config import SiteConfig
+from .config import SiteConfig, load_config, replace_config
 from wiki.static_site import StaticSiteBuilder
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="gititpy")
     parser.add_argument("--base-dir", default=".", help="Project root. Defaults to the current directory.")
-    parser.add_argument("--wiki-title", default="GititPy", help="Site title.")
+    parser.add_argument("--config", default=None, help="Config file. Defaults to BASE_DIR/gititpy.toml when present.")
+    parser.add_argument("--wiki-title", default=None, help="Site title.")
     parser.add_argument("--wiki-root", default=None, help="Wiki page tree. Defaults to BASE_DIR/wiki-pages.")
     parser.add_argument(
         "--mathjax-url",
-        default="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js",
+        default=None,
         help="MathJax script URL.",
+    )
+    parser.add_argument(
+        "--template-root",
+        action="append",
+        default=None,
+        help="Template override directory. Can be passed more than once.",
+    )
+    parser.add_argument(
+        "--static-root",
+        action="append",
+        default=None,
+        help="Static asset directory copied over packaged assets. Can be passed more than once.",
     )
 
     subparsers = parser.add_subparsers(dest="command")
@@ -34,21 +47,15 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 2
 
-    config = SiteConfig(
-        base_dir=Path(args.base_dir).resolve(),
-        wiki_title=args.wiki_title,
-        wiki_root=Path(args.wiki_root).resolve() if args.wiki_root else None,
-        source_root=Path(args.source_root).resolve() if args.source_root else None,
-        build_source=not args.no_source,
-        jobs=args.jobs,
-        mathjax_url=args.mathjax_url,
-    )
+    base_dir = Path(args.base_dir).resolve()
+    config_path = Path(args.config).resolve() if args.config else None
+    config = apply_cli_overrides(load_config(base_dir, config_path), args)
 
     if args.command == "build":
-        build(config, args)
+        build(config, clean=not args.no_clean)
         return 0
     if args.command == "serve":
-        output_dir = build(config, args)
+        output_dir = build(config, clean=not args.no_clean)
         serve(output_dir, args.host, args.port)
         return 0
     parser.error(f"Unknown command {args.command}")
@@ -56,8 +63,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def add_build_arguments(parser: argparse.ArgumentParser):
-    parser.add_argument("--output", default="public", help="Directory for generated files.")
-    parser.add_argument("--base-url", default="", help="Optional URL prefix, e.g. /repository-name.")
+    parser.add_argument("--output", default=None, help="Directory for generated files.")
+    parser.add_argument("--base-url", default=None, help="Optional URL prefix, e.g. /repository-name.")
     parser.add_argument("--no-clean", action="store_true", help="Do not remove the output directory first.")
     parser.add_argument("--source-root", default=None, help="Source tree to render under /src/. Defaults to BASE_DIR/basilisk/src when it exists.")
     parser.add_argument("--no-source", action="store_true", help="Skip /src/ source browser generation.")
@@ -73,16 +80,40 @@ def default_jobs() -> int:
     return max(1, min(4, os.cpu_count() or 1))
 
 
-def build(config: SiteConfig, args: argparse.Namespace) -> Path:
-    output_dir = Path(args.output)
-    if not output_dir.is_absolute():
-        output_dir = config.base_dir / output_dir
+def apply_cli_overrides(config: SiteConfig, args: argparse.Namespace) -> SiteConfig:
+    changes = {}
+    if args.wiki_title is not None:
+        changes["wiki_title"] = args.wiki_title
+    if args.wiki_root is not None:
+        changes["wiki_root"] = Path(args.wiki_root)
+    if args.source_root is not None:
+        changes["source_root"] = Path(args.source_root)
+        changes["build_source"] = True
+    if args.output is not None:
+        changes["output_dir"] = Path(args.output)
+    if args.base_url is not None:
+        changes["base_url"] = args.base_url
+    if args.jobs is not None:
+        changes["jobs"] = args.jobs
+    if args.mathjax_url is not None:
+        changes["mathjax_url"] = args.mathjax_url
+    if args.template_root is not None:
+        changes["template_roots"] = tuple(Path(path) for path in args.template_root)
+    if args.static_root is not None:
+        changes["static_roots"] = tuple(Path(path) for path in args.static_root)
+    if args.no_source:
+        changes["build_source"] = False
+    return replace_config(config, **changes)
+
+
+def build(config: SiteConfig, clean: bool = True) -> Path:
+    output_dir = config.resolved_output_dir()
     builder = StaticSiteBuilder(
         config=config,
         output_dir=output_dir,
-        base_url=args.base_url,
+        base_url=config.base_url,
     )
-    result = builder.build(clean=not args.no_clean)
+    result = builder.build(clean=clean)
     print(
         f"Built static site in {result.output_dir} "
         f"({result.html_files} HTML files, {result.copied_files} copied files)."

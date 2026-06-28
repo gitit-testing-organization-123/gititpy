@@ -39,6 +39,44 @@ Adjust it with:
 python -m gititpy build --output public --jobs 8
 ```
 
+## Site configuration
+
+`gititpy` reads `gititpy.toml` from the project root when it exists. Command
+line options override the file, so local experiments do not require editing the
+checked-in config.
+
+```toml
+[site]
+title = "My Site"
+base_url = ""
+
+[paths]
+wiki_root = "wiki-pages"
+source_root = "basilisk/src"
+output = "public"
+template_roots = ["templates"]
+static_roots = ["static"]
+
+[build]
+source = true
+jobs = 4
+```
+
+A consuming site can keep content and customization in this shape:
+
+```text
+wiki-pages/       Markdown, source pages, images, movies, and other page assets
+basilisk/src/     Optional tree rendered under /src/
+templates/        Optional Jinja template overrides, e.g. templates/wiki/base.html
+static/           Optional static overrides copied to /static/
+public/           Generated output
+```
+
+For GitHub Pages, the included `.github/workflows/pages.yml` checks out the
+repo, installs Pandoc and the local package, runs `gititpy build`, and deploys
+`public/`. Expensive plot or movie generation should happen before this build
+and commit or otherwise provide the resulting artifacts to the site tree.
+
 The build copies static assets, renders wiki pages, renders directory indexes,
 copies non-rendered assets such as images or movies, and writes
 `search-index.json` for client-side search. It does not run long simulations or

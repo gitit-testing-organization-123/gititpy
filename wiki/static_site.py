@@ -43,7 +43,7 @@ class StaticSiteBuilder:
         self.source_tree = SourceTree(resolved_source_root) if resolved_source_root else None
         self.output_dir = Path(output_dir or self.config.base_dir / "public")
         self.urls = StaticUrls(base_url)
-        self.templates = TemplateRenderer()
+        self.templates = TemplateRenderer(self.config.resolved_template_roots())
         self.html_files = 0
         self.copied_files = 0
         self.jobs = self.resolve_jobs(self.config.jobs)
@@ -219,6 +219,9 @@ class StaticSiteBuilder:
         static_root = Path(__file__).resolve().parent / "static"
         if static_root.exists():
             shutil.copytree(static_root, self.output_dir / "static", dirs_exist_ok=True)
+        for static_root in self.config.resolved_static_roots():
+            if static_root.exists():
+                shutil.copytree(static_root, self.output_dir / "static", dirs_exist_ok=True)
 
     def write_search_index(self):
         documents = []
@@ -506,10 +509,12 @@ class StaticUrls:
 
 
 class TemplateRenderer:
-    def __init__(self):
+    def __init__(self, override_roots: tuple[Path, ...] = ()):
         template_root = Path(__file__).resolve().parent / "templates"
+        roots = [str(root) for root in override_roots if root.exists()]
+        roots.append(str(template_root))
         self.environment = Environment(
-            loader=FileSystemLoader(template_root),
+            loader=FileSystemLoader(roots),
             autoescape=select_autoescape(["html", "xml"]),
         )
 

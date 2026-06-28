@@ -1,5 +1,5 @@
 {
-  description = "Development environment for a Django gitit-style wiki";
+  description = "Development environment for a Gitit-style static site generator";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -23,10 +23,9 @@
           pkgs = nixpkgs.legacyPackages.${system};
           python = pkgs.python312.withPackages (
             ps: with ps; [
-              django
+              jinja2
               pygments
               pytest
-              pytest-django
               setuptools
               wheel
             ]
@@ -52,7 +51,7 @@
               if [ ! -x wiki/darcsit_helpers/bin/literate-c ] || [ ! -x wiki/darcsit_helpers/bin/codeblock ] || [ ! -x wiki/darcsit_helpers/bin/pagemagic ]; then
                 python -m wiki.darcsit_helpers.build >/dev/null
               fi
-              echo "Django dev shell: $(python --version), Django $(python -m django --version), Pandoc $(pandoc --version | head -n 1 | cut -d' ' -f2)"
+              echo "GititPy dev shell: $(python --version), Pandoc $(pandoc --version | head -n 1 | cut -d' ' -f2)"
             '';
           };
         }

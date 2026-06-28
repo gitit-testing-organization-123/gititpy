@@ -1,13 +1,12 @@
-{% load static %}
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ wiki_title }} - {{ page_title }}</title>
-    <link href="{% static 'wiki/css/custom.css' %}" rel="stylesheet" media="screen" type="text/css">
-    <link href="{% static 'wiki/css/print.css' %}" rel="stylesheet" media="print" type="text/css">
-    <link href="{% static 'wiki/css/gititpy.css' %}" rel="stylesheet" media="screen" type="text/css">
+    <link href="{{ static_url }}wiki/css/custom.css" rel="stylesheet" media="screen" type="text/css">
+    <link href="{{ static_url }}wiki/css/print.css" rel="stylesheet" media="print" type="text/css">
+    <link href="{{ static_url }}wiki/css/gititpy.css" rel="stylesheet" media="screen" type="text/css">
     <script>
       window.MathJax = {
         tex: {
@@ -31,44 +30,13 @@
           <div id="content">
             {% block content %}{% endblock %}
           </div>
-          <div id="footer">Powered by Django, Markdown, and Git.</div>
+          <div id="footer"></div>
         </div>
       </div>
       <div id="sidebar" class="yui-b first">
-        <div id="logo">
-          <a href="{{ front_url }}"><img src="{% static 'wiki/img/logo.png' %}" alt="{{ wiki_title }}"></a>
-        </div>
-        <div class="sitenav">
-          <fieldset>
-            <legend>Navigation</legend>
-            <ul>
-              <li><a href="{{ front_url }}">Front page</a></li>
-              <li><a href="{{ all_pages_url }}">All pages</a></li>
-              <li><a href="{{ recent_url }}">Recent activity</a></li>
-              <li><a href="{% url 'page' slug='Help' %}">Help</a></li>
-            </ul>
-            <form id="searchform" action="{{ search_url }}" method="get">
-              <input class="search_term" type="text" name="q" value="{{ query|default:'' }}" placeholder="Search">
-              <input type="submit" value="Search">
-            </form>
-            <form id="goform" action="{{ go_url }}" method="get">
-              <input type="text" name="page" placeholder="Page name">
-              <input type="submit" value="Go">
-            </form>
-          </fieldset>
-        </div>
-        {% if page_slug %}
-          <div class="pageTools">
-            <fieldset>
-              <legend>This page</legend>
-              <ul>
-                <li><a href="{% url 'raw' slug=page_slug %}">Raw page source</a></li>
-                <li><a href="{% url 'history' slug=page_slug %}">Page history</a></li>
-                <li><a href="{% url 'delete' slug=page_slug %}">Delete this page</a></li>
-              </ul>
-            </fieldset>
-          </div>
-        {% endif %}
+        {% block sidebar %}
+          {% include "wiki/sidebar.html" %}
+        {% endblock %}
       </div>
     </div>
   </body>

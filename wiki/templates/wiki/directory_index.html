@@ -1,0 +1,25 @@
+{% extends "wiki/base.html" %}
+
+{% block content %}
+  <h1 class="pageTitle">{{ page_title }}</h1>
+  <div class="index">
+    <ul>
+      {% if directory_path %}
+        <li class="folder">
+          {% if parent_path %}
+            <a class="updir" href="{{ parent_url }}">..</a>
+          {% else %}
+            <a class="updir" href="{{ all_pages_url }}">..</a>
+          {% endif %}
+        </li>
+      {% endif %}
+      {% for entry in entries %}
+        <li class="{% if entry.is_dir %}folder{% else %}page{% endif %}">
+          <a href="{{ entry.href }}">{{ entry.name }}{% if entry.is_dir %}/{% endif %}</a>
+        </li>
+      {% else %}
+        <li>No pages in this folder.</li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endblock %}

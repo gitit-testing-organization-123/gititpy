@@ -1,3 +1,4 @@
+.envrc
 .direnv/
 __pycache__/
 *.py[cod]
@@ -9,12 +10,7 @@ db.sqlite3
 media/
 staticfiles/
 wiki-pages/
-darcsit/codeblock
-darcsit/literate-c
-darcsit/pagemagic
-darcsit/sanitize
-darcsit/urldecode
 wiki/darcsit_helpers/bin/*
 !wiki/darcsit_helpers/bin/.gitkeep
-.envrc
-darcsit
+basilisk
+public

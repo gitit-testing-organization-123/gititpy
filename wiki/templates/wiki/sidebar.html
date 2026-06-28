@@ -1,0 +1,55 @@
+<div id="logo">
+  <a href="{{ front_url }}"><img src="{{ static_url }}wiki/img/logo.png" alt="{{ wiki_title }}"></a>
+</div>
+<div class="sitenav">
+  <fieldset>
+    <legend>Site</legend>
+    <ul>
+      <li><a href="{{ front_url }}">Front page</a></li>
+      <li><a href="{{ all_pages_url }}">All pages</a></li>
+      <li><a href="{{ recent_url }}">Recent activity</a></li>
+      <li><a href="{{ help_url }}">Help</a></li>
+    </ul>
+    <form id="searchform" action="{{ search_url }}" method="get">
+      <input class="search_term" type="text" name="q" value="" placeholder="">
+      <input type="submit" value="Search">
+    </form>
+  </fieldset>
+  <fieldset>
+    <legend>Documentation</legend>
+    <ul>
+      <li><a href="/Tutorial">Tutorial</a></li>
+      <li><a href="/src/INSTALL">Installation</a></li>
+      <li><a href="/Basilisk C">Basilisk C</a></li>
+      <li><a href="/src/README">Solvers and functions</a></li>
+      <li><a href="/src/examples/README">Examples</a></li>
+    </ul>
+  </fieldset>
+  <fieldset>
+    <legend>Development</legend>
+    <ul>
+      <li><a href="#">Recent activity</a></li>
+      <li><a href="{{ source_root_url }}">Source code</a></li>
+      <li><a href="#">Github</a></li>
+      <li><a href="/src/test/README">Test cases</a></li>
+      <li><a href="/Basilisk C">Basilisk C</a></li>
+      <li><a href="#">Bug reports</a></li>
+      <li><a href="/src/Contributing">How to contribute</a></li>
+      <li><a href="/sandbox">Play in the sandbox</a></li>
+    </ul>
+  </fieldset>
+</div>
+{% if page_slug %}
+  <div class="pageTools">
+    <fieldset>
+      <legend>This page</legend>
+      <ul>
+        <li><a href="{{ raw_page_url }}">Raw page source</a></li>
+        <li><a href="{{ history_page_url }}">Page history</a></li>
+        {% if not static_build %}
+          <li><a href="{{ delete_page_url }}">Delete this page</a></li>
+        {% endif %}
+      </ul>
+    </fieldset>
+  </div>
+{% endif %}

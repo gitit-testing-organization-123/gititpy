@@ -1,7 +1,9 @@
 {% extends "wiki/base.html" %}
 
 {% block tabs %}
-  {% include "wiki/tabs.html" with active_tab="view" %}
+  {% with active_tab="view" %}
+    {% include "wiki/tabs.html" %}
+  {% endwith %}
 {% endblock %}
 
 {% block content %}

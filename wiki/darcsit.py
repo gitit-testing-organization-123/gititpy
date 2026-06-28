@@ -5,6 +5,8 @@ import subprocess
 import tempfile
 from pathlib import Path, PurePosixPath
 
+from .bibliography import render_bibliography_html, replace_bibliography_blocks
+
 
 WIKI_LINK_RE = re.compile(r"\[\[([^\]\n]+)\]\]")
 
@@ -23,11 +25,12 @@ LANGUAGES_BY_SUFFIX = {
 
 
 def render(source: str, slug: str = "", source_path=None) -> str:
+    if PurePosixPath(slug).suffix.lower() == ".bib":
+        return render_bibliography_html(source)
     helper_html = render_with_helpers(source, slug, source_path=source_path)
     if helper_html is not None:
         return helper_html
-    markup = source_to_markdown(source, slug)
-    return render_markdown(markup)
+    return render_page_with_helpers(source, slug, source_path=source_path)
 
 
 def render_with_helpers(source: str, slug: str, source_path=None) -> str | None:
@@ -51,17 +54,49 @@ def render_file_with_helpers(path: str, slug: str, language: str) -> str | None:
         raise RuntimeError("Packaged Darcsit helper binaries are not available.")
 
     if helper.pagemagic(path):
-        markdown_source = helper.literate(path)
-        if markdown_source is None:
-            raise RuntimeError(f"Darcsit literate-c failed for {path}.")
-        markdown_source = markdown_source.replace("~~~literatec", "~~~c")
-        html_source = render_markdown(markdown_source)
-        rendered = helper.codeblock(html_source, path)
-        if rendered is None:
-            raise RuntimeError(f"Darcsit codeblock failed for {path}.")
-        return rendered
+        transformed, replaced = replace_bibliography_blocks(read_text(path))
+        if replaced:
+            suffix = Path(path).suffix
+            with tempfile.NamedTemporaryFile("w", suffix=suffix, encoding="utf-8") as tmp:
+                tmp.write(transformed)
+                tmp.flush()
+                return render_literate_file(helper, tmp.name, page_magic=True)
+        return render_literate_file(helper, path, page_magic=True)
 
     return render_markdown(fenced_code(read_text(path), language))
+
+
+def render_page_with_helpers(source: str, slug: str, source_path=None) -> str:
+    helper = DarcsitHelpers()
+    if not helper.available():
+        raise RuntimeError("Packaged Darcsit helper binaries are not available.")
+
+    transformed, _replaced = replace_bibliography_blocks(preprocess_wiki_links(source))
+    if source_path is not None and transformed == source:
+        return render_literate_file(helper, str(source_path), page_magic=False, codeblock_ext=None)
+
+    suffix = PurePosixPath(slug).suffix or ".md"
+    with tempfile.NamedTemporaryFile("w", suffix=suffix, encoding="utf-8") as tmp:
+        tmp.write(transformed)
+        tmp.flush()
+        return render_literate_file(helper, tmp.name, page_magic=False, codeblock_ext=None)
+
+
+def render_literate_file(
+    helper: "DarcsitHelpers",
+    path: str,
+    page_magic: bool,
+    codeblock_ext: str | None = "1",
+) -> str:
+    markdown_source = helper.literate(path, page_magic=page_magic)
+    if markdown_source is None:
+        raise RuntimeError(f"Darcsit literate-c failed for {path}.")
+    markdown_source = markdown_source.replace("~~~literatec", "~~~c")
+    html_source = render_markdown(markdown_source)
+    rendered = helper.codeblock(html_source, path, ext=codeblock_ext)
+    if rendered is None:
+        raise RuntimeError(f"Darcsit codeblock failed for {path}.")
+    return rendered
 
 
 def source_to_markdown(source: str, slug: str = "") -> str:
@@ -122,12 +157,15 @@ class DarcsitHelpers:
         result = self.run([str(self.pagemagic_path), path], check=False)
         return result is not None and result.returncode == 0
 
-    def literate(self, path: str) -> str | None:
-        result = self.run([str(self.literate_path), path, "1"])
+    def literate(self, path: str, page_magic: bool = True) -> str | None:
+        result = self.run([str(self.literate_path), path, "1" if page_magic else "0"])
         return result.stdout if result else None
 
-    def codeblock(self, html_source: str, path: str) -> str | None:
-        result = self.run([str(self.codeblock_path), "", path, "1"], input=html_source)
+    def codeblock(self, html_source: str, path: str, ext: str | None = "1") -> str | None:
+        args = [str(self.codeblock_path), "", path]
+        if ext is not None:
+            args.append(ext)
+        result = self.run(args, input=html_source)
         return result.stdout if result else None
 
     def run(
@@ -166,7 +204,8 @@ def wiki_link(match: re.Match[str]) -> str:
 
 def language_for_slug(slug: str) -> str | None:
     name = PurePosixPath(slug).name
-    if name in {"Makefile", "makefile"}:
+    lower_name = name.lower()
+    if lower_name in {"gnumakefile", "makefile"} or lower_name.startswith("makefile."):
         return "makefile"
     return LANGUAGES_BY_SUFFIX.get(PurePosixPath(slug).suffix.lower())
 

@@ -5,12 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "gititpy"
 version = "0.1.0"
-description = "A small Django Gitit/Darcsit-style wiki"
+description = "A small Gitit/Darcsit-style static site generator"
 requires-python = ">=3.12"
 dependencies = [
-  "Django>=5.2",
+  "Jinja2>=3.1",
   "Pygments>=2.0",
 ]
+
+[project.scripts]
+gititpy = "gititpy.cli:main"
 
 [tool.setuptools]
 include-package-data = false
@@ -23,6 +26,7 @@ namespaces = false
 "wiki" = [
   "templates/wiki/*.html",
   "static/wiki/css/*.css",
+  "static/wiki/js/*.js",
   "static/wiki/img/*",
   "static/wiki/img/icons/*",
 ]

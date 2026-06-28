@@ -13,7 +13,7 @@
     <input id="logMsg" type="text" name="message" value="Delete {{ page_slug }}">
     <p>
       <input type="submit" value="Delete">
-      <a class="button" href="{% url 'page' slug=page_slug %}">Cancel</a>
+      <a class="button" href="{{ page_url }}">Cancel</a>
     </p>
   </form>
 {% endblock %}

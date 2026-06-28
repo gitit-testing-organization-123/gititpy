@@ -1,0 +1,21 @@
+{% extends "wiki/base.html" %}
+
+{% block content %}
+  <h1 class="pageTitle">Search</h1>
+  <form action="{{ search_url }}" method="get">
+    <p>
+      <input type="text" name="q" value="{{ query }}" autofocus>
+      <input type="submit" value="Search">
+    </p>
+  </form>
+  {% if query %}
+    {% for result in results %}
+      <div class="search_result">
+        <h2><a href="{% url 'page' slug=result.slug %}">{{ result.slug }}</a></h2>
+        <p class="match">{{ result.snippet }}</p>
+      </div>
+    {% empty %}
+      <p>No pages matched "{{ query }}".</p>
+    {% endfor %}
+  {% endif %}
+{% endblock %}

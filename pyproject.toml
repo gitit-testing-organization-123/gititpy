@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gititpy"
+version = "0.1.0"
+description = "A small Django Gitit/Darcsit-style wiki"
+requires-python = ">=3.12"
+dependencies = [
+  "Django>=5.2",
+  "Pygments>=2.0",
+]
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+include = ["gititpy", "wiki", "wiki.*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+"wiki" = [
+  "templates/wiki/*.html",
+  "static/wiki/css/*.css",
+  "static/wiki/img/*",
+  "static/wiki/img/icons/*",
+]
+"wiki.darcsit_helpers" = [
+  "src/*.c",
+  "bin/*",
+]

@@ -1,0 +1,29 @@
+{% extends "wiki/base.html" %}
+
+{% block content %}
+  <h1 class="pageTitle">Recent activity</h1>
+  {% if revisions %}
+    <table>
+      <thead>
+        <tr>
+          <th>Revision</th>
+          <th>Date</th>
+          <th>Author</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for revision in revisions %}
+          <tr>
+            <td>{{ revision.short_commit }}</td>
+            <td>{{ revision.date }}</td>
+            <td>{{ revision.author }}</td>
+            <td>{{ revision.subject }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No activity yet.</p>
+  {% endif %}
+{% endblock %}

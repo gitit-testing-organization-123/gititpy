@@ -1,0 +1,19 @@
+{% extends "wiki/base.html" %}
+
+{% block tabs %}
+  {% include "wiki/tabs.html" with active_tab="edit" %}
+{% endblock %}
+
+{% block content %}
+  <h1 class="pageTitle">{% if creating %}Create{% else %}Edit{% endif %} {{ page_title }}</h1>
+  <form id="editform" method="post">
+    {% csrf_token %}
+    <textarea name="content" spellcheck="false">{{ content }}</textarea>
+    <label for="logMsg">Change description</label>
+    <input id="logMsg" type="text" name="message" value="{% if creating %}Create {{ page_slug }}{% else %}Update {{ page_slug }}{% endif %}">
+    <p>
+      <input type="submit" value="Save">
+      <a class="button" href="{% url 'page' slug=page_slug %}">Cancel</a>
+    </p>
+  </form>
+{% endblock %}

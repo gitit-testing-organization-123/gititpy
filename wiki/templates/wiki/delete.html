@@ -1,0 +1,19 @@
+{% extends "wiki/base.html" %}
+
+{% block tabs %}
+  {% include "wiki/tabs.html" with active_tab="edit" %}
+{% endblock %}
+
+{% block content %}
+  <h1 class="pageTitle">Delete {{ page_title }}</h1>
+  <p>This removes the current page file, but the old content remains recoverable from Git history.</p>
+  <form method="post">
+    {% csrf_token %}
+    <label for="logMsg">Change description</label>
+    <input id="logMsg" type="text" name="message" value="Delete {{ page_slug }}">
+    <p>
+      <input type="submit" value="Delete">
+      <a class="button" href="{% url 'page' slug=page_slug %}">Cancel</a>
+    </p>
+  </form>
+{% endblock %}

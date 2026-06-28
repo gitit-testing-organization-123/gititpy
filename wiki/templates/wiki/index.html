@@ -1,0 +1,14 @@
+{% extends "wiki/base.html" %}
+
+{% block content %}
+  <h1 class="pageTitle">All pages</h1>
+  <div class="index">
+    <ul>
+      {% for page in pages %}
+        <li class="page"><a href="{% url 'page' slug=page %}">{{ page }}</a></li>
+      {% empty %}
+        <li>No pages yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endblock %}

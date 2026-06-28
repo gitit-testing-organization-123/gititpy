@@ -1,0 +1,33 @@
+{% extends "wiki/base.html" %}
+
+{% block tabs %}
+  {% include "wiki/tabs.html" with active_tab="history" %}
+{% endblock %}
+
+{% block content %}
+  <h1 class="pageTitle">History for {{ page_title }}</h1>
+  {% if revisions %}
+    <table>
+      <thead>
+        <tr>
+          <th>Revision</th>
+          <th>Date</th>
+          <th>Author</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for revision in revisions %}
+          <tr>
+            <td><a href="{% url 'page' slug=page_slug %}?revision={{ revision.commit }}">{{ revision.short_commit }}</a></td>
+            <td>{{ revision.date }}</td>
+            <td>{{ revision.author }}</td>
+            <td>{{ revision.subject }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No history yet.</p>
+  {% endif %}
+{% endblock %}

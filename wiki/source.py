@@ -76,7 +76,7 @@ class SourceTree:
             raise NotADirectoryError(value)
         entries = []
         for child in directory.iterdir():
-            if child.name.startswith("."):
+            if child.name.startswith(".") or child.suffix.lower() == ".tags":
                 continue
             rel = child.relative_to(self.root).as_posix()
             entries.append(SourceEntry(child.name, rel, child.is_dir()))
@@ -86,6 +86,8 @@ class SourceTree:
         return self.render_decision(path).render
 
     def render_decision(self, path: Path) -> SourceRenderDecision:
+        if path.suffix.lower() == ".tags":
+            return SourceRenderDecision(False, "generated-tags")
         if self.is_makefile(path):
             return SourceRenderDecision(True, "makefile")
         suffix = path.suffix.lower()

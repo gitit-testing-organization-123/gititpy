@@ -1,4 +1,5 @@
 import html
+import os
 import re
 import shutil
 import subprocess
@@ -9,6 +10,12 @@ from .bibliography import render_bibliography_html, replace_bibliography_blocks
 
 
 WIKI_LINK_RE = re.compile(r"\[\[([^\]\n]+)\]\]")
+METADATA_BLOCK_RE = re.compile(r"\A---[ \t]*\n(?P<body>.*?)(?:\n\.\.\.[ \t]*\n|\n---[ \t]*\n)", re.DOTALL)
+TOC_TEMPLATE = """$if(toc)$<div id="TOC">
+$toc$
+</div>
+$endif$
+$body$"""
 
 LANGUAGES_BY_SUFFIX = {
     ".awk": "awk",
@@ -24,32 +31,74 @@ LANGUAGES_BY_SUFFIX = {
 }
 
 
-def render(source: str, slug: str = "", source_path=None) -> str:
+def render(
+    source: str,
+    slug: str = "",
+    source_path=None,
+    table_of_contents: bool = True,
+    basilisk_root: Path | None = None,
+) -> str:
     if PurePosixPath(slug).suffix.lower() == ".bib":
         return render_bibliography_html(source)
-    helper_html = render_with_helpers(source, slug, source_path=source_path)
+    helper_html = render_with_helpers(
+        source,
+        slug,
+        source_path=source_path,
+        table_of_contents=table_of_contents,
+        basilisk_root=basilisk_root,
+    )
     if helper_html is not None:
         return helper_html
-    return render_page_with_helpers(source, slug, source_path=source_path)
+    return render_page_with_helpers(
+        source,
+        slug,
+        source_path=source_path,
+        table_of_contents=table_of_contents,
+        basilisk_root=basilisk_root,
+    )
 
 
-def render_with_helpers(source: str, slug: str, source_path=None) -> str | None:
+def render_with_helpers(
+    source: str,
+    slug: str,
+    source_path=None,
+    table_of_contents: bool = True,
+    basilisk_root: Path | None = None,
+) -> str | None:
     language = language_for_slug(slug)
     if not language:
         return None
 
     if source_path is not None:
-        return render_file_with_helpers(str(source_path), slug, language)
+        return render_file_with_helpers(
+            str(source_path),
+            slug,
+            language,
+            table_of_contents=table_of_contents,
+            basilisk_root=basilisk_root,
+        )
 
     suffix = PurePosixPath(slug).suffix or ".md"
     with tempfile.NamedTemporaryFile("w", suffix=suffix, encoding="utf-8") as tmp:
         tmp.write(source)
         tmp.flush()
-        return render_file_with_helpers(tmp.name, slug, language)
+        return render_file_with_helpers(
+            tmp.name,
+            slug,
+            language,
+            table_of_contents=table_of_contents,
+            basilisk_root=basilisk_root,
+        )
 
 
-def render_file_with_helpers(path: str, slug: str, language: str) -> str | None:
-    helper = DarcsitHelpers()
+def render_file_with_helpers(
+    path: str,
+    slug: str,
+    language: str,
+    table_of_contents: bool = True,
+    basilisk_root: Path | None = None,
+) -> str | None:
+    helper = DarcsitHelpers(env=darcsit_environment(basilisk_root))
     if not helper.available():
         raise RuntimeError("Packaged Darcsit helper binaries are not available.")
 
@@ -60,26 +109,44 @@ def render_file_with_helpers(path: str, slug: str, language: str) -> str | None:
             with tempfile.NamedTemporaryFile("w", suffix=suffix, encoding="utf-8") as tmp:
                 tmp.write(transformed)
                 tmp.flush()
-                return render_literate_file(helper, tmp.name, page_magic=True)
-        return render_literate_file(helper, path, page_magic=True)
+                return render_literate_file(helper, tmp.name, page_magic=True, table_of_contents=table_of_contents)
+        return render_literate_file(helper, path, page_magic=True, table_of_contents=table_of_contents)
 
-    return render_markdown(fenced_code(read_text(path), language))
+    return render_markdown(fenced_code(read_text(path), language), table_of_contents=False)
 
 
-def render_page_with_helpers(source: str, slug: str, source_path=None) -> str:
-    helper = DarcsitHelpers()
+def render_page_with_helpers(
+    source: str,
+    slug: str,
+    source_path=None,
+    table_of_contents: bool = True,
+    basilisk_root: Path | None = None,
+) -> str:
+    helper = DarcsitHelpers(env=darcsit_environment(basilisk_root))
     if not helper.available():
         raise RuntimeError("Packaged Darcsit helper binaries are not available.")
 
     transformed, _replaced = replace_bibliography_blocks(preprocess_wiki_links(source))
     if source_path is not None and transformed == source:
-        return render_literate_file(helper, str(source_path), page_magic=False, codeblock_ext=None)
+        return render_literate_file(
+            helper,
+            str(source_path),
+            page_magic=False,
+            codeblock_ext=None,
+            table_of_contents=table_of_contents,
+        )
 
     suffix = PurePosixPath(slug).suffix or ".md"
     with tempfile.NamedTemporaryFile("w", suffix=suffix, encoding="utf-8") as tmp:
         tmp.write(transformed)
         tmp.flush()
-        return render_literate_file(helper, tmp.name, page_magic=False, codeblock_ext=None)
+        return render_literate_file(
+            helper,
+            tmp.name,
+            page_magic=False,
+            codeblock_ext=None,
+            table_of_contents=table_of_contents,
+        )
 
 
 def render_literate_file(
@@ -87,12 +154,13 @@ def render_literate_file(
     path: str,
     page_magic: bool,
     codeblock_ext: str | None = "1",
+    table_of_contents: bool = True,
 ) -> str:
     markdown_source = helper.literate(path, page_magic=page_magic)
     if markdown_source is None:
         raise RuntimeError(f"Darcsit literate-c failed for {path}.")
     markdown_source = markdown_source.replace("~~~literatec", "~~~c")
-    html_source = render_markdown(markdown_source)
+    html_source = render_markdown(markdown_source, table_of_contents=table_of_contents)
     rendered = helper.codeblock(html_source, path, ext=codeblock_ext)
     if rendered is None:
         raise RuntimeError(f"Darcsit codeblock failed for {path}.")
@@ -106,20 +174,28 @@ def source_to_markdown(source: str, slug: str = "") -> str:
     return fenced_code(source, language)
 
 
-def render_markdown(source: str) -> str:
+def render_markdown(source: str, table_of_contents: bool = True) -> str:
     pandoc = shutil.which("pandoc")
     if not pandoc:
         raise RuntimeError("Pandoc is required to render wiki pages.")
+    use_toc = page_table_of_contents(source, table_of_contents)
+    args = [
+        pandoc,
+        "--from=markdown+smart",
+        "--to=html5",
+        "--mathjax",
+        "--preserve-tabs",
+        "--highlight-style=pygments",
+    ]
+    template_file = None
+    if use_toc:
+        template_file = tempfile.NamedTemporaryFile("w", suffix=".html", encoding="utf-8", delete=False)
+        template_file.write(TOC_TEMPLATE)
+        template_file.close()
+        args.extend(["--standalone", "--toc", f"--template={template_file.name}"])
     try:
         result = subprocess.run(
-            [
-                pandoc,
-                "--from=markdown+smart",
-                "--to=html5",
-                "--mathjax",
-                "--preserve-tabs",
-                "--highlight-style=pygments",
-            ],
+            args,
             input=source,
             capture_output=True,
             check=True,
@@ -127,11 +203,44 @@ def render_markdown(source: str) -> str:
         )
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(f"Pandoc failed: {exc.stderr}") from exc
+    finally:
+        if template_file is not None:
+            Path(template_file.name).unlink(missing_ok=True)
     return result.stdout
 
 
+def page_table_of_contents(source: str, default: bool) -> bool:
+    metadata = parse_metadata_block(source)
+    value = metadata.get("toc")
+    if value is None:
+        return default
+    return value.casefold() in {"yes", "true", "1", "on"}
+
+
+def parse_metadata_block(source: str) -> dict[str, str]:
+    match = METADATA_BLOCK_RE.match(source)
+    if not match:
+        return {}
+    metadata: dict[str, str] = {}
+    current_key = None
+    for line in match.group("body").splitlines():
+        if not line.strip():
+            continue
+        if line.startswith((" ", "\t")) and current_key:
+            metadata[current_key] = f"{metadata[current_key]} {line.strip()}"
+            continue
+        if ":" not in line:
+            current_key = None
+            continue
+        key, value = line.split(":", 1)
+        current_key = key.strip().casefold()
+        metadata[current_key] = value.strip()
+    return metadata
+
+
 class DarcsitHelpers:
-    def __init__(self):
+    def __init__(self, env: dict[str, str] | None = None):
+        self.env = env
         self.root = self.find_helper_root()
         self.pagemagic_path = self.root / "pagemagic" if self.root else None
         self.literate_path = self.root / "literate-c" if self.root else None
@@ -178,6 +287,7 @@ class DarcsitHelpers:
             return subprocess.run(
                 args,
                 input=input,
+                env=self.env,
                 capture_output=True,
                 check=check,
                 text=True,
@@ -185,6 +295,14 @@ class DarcsitHelpers:
             )
         except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
             return None
+
+
+def darcsit_environment(basilisk_root: Path | None) -> dict[str, str] | None:
+    if basilisk_root is None:
+        return None
+    env = os.environ.copy()
+    env["BASILISK"] = str(basilisk_root)
+    return env
 
 
 def read_text(path: str) -> str:

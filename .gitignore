@@ -6,7 +6,7 @@ __pycache__/
 build/
 dist/
 *.egg-info/
-db.sqlite3
+result
 media/
 staticfiles/
 wiki-pages/

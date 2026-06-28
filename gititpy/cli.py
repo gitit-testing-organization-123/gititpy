@@ -14,6 +14,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", default=None, help="Config file. Defaults to BASE_DIR/gititpy.toml when present.")
     parser.add_argument("--wiki-title", default=None, help="Site title.")
     parser.add_argument("--wiki-root", default=None, help="Wiki page tree. Defaults to BASE_DIR/wiki-pages.")
+    parser.add_argument("--sandbox-root", default=None, help="Sandbox page tree. Defaults to BASE_DIR/sandbox when present.")
+    parser.add_argument(
+        "--toc",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable or disable generated tables of contents.",
+    )
     parser.add_argument(
         "--mathjax-url",
         default=None,
@@ -52,10 +59,10 @@ def main(argv: list[str] | None = None) -> int:
     config = apply_cli_overrides(load_config(base_dir, config_path), args)
 
     if args.command == "build":
-        build(config, clean=not args.no_clean)
+        build(config, force_rebuild=args.force_rebuild)
         return 0
     if args.command == "serve":
-        output_dir = build(config, clean=not args.no_clean)
+        output_dir = build(config, force_rebuild=args.force_rebuild)
         serve(output_dir, args.host, args.port)
         return 0
     parser.error(f"Unknown command {args.command}")
@@ -65,9 +72,30 @@ def main(argv: list[str] | None = None) -> int:
 def add_build_arguments(parser: argparse.ArgumentParser):
     parser.add_argument("--output", default=None, help="Directory for generated files.")
     parser.add_argument("--base-url", default=None, help="Optional URL prefix, e.g. /repository-name.")
-    parser.add_argument("--no-clean", action="store_true", help="Do not remove the output directory first.")
+    parser.add_argument("--artifacts-base-url", default=None, help="External base URL for /artifacts/... links.")
+    parser.add_argument("--no-clean", action="store_true", help="Compatibility option; incremental builds no longer clean by default.")
+    parser.add_argument("--force-rebuild", action="store_true", help="Ignore the incremental manifest and rebuild all generated files.")
     parser.add_argument("--source-root", default=None, help="Source tree to render under /src/. Defaults to BASE_DIR/basilisk/src when it exists.")
     parser.add_argument("--no-source", action="store_true", help="Skip /src/ source browser generation.")
+    parser.add_argument(
+        "--source-tags",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Generate qcc .tags files for C source pages.",
+    )
+    parser.add_argument("--qcc-command", default=None, help="qcc command used for --source-tags.")
+    parser.add_argument(
+        "--toc",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable or disable generated tables of contents.",
+    )
+    parser.add_argument(
+        "--verbose",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Print build phases and generated paths.",
+    )
     parser.add_argument(
         "--jobs",
         type=int,
@@ -86,6 +114,8 @@ def apply_cli_overrides(config: SiteConfig, args: argparse.Namespace) -> SiteCon
         changes["wiki_title"] = args.wiki_title
     if args.wiki_root is not None:
         changes["wiki_root"] = Path(args.wiki_root)
+    if args.sandbox_root is not None:
+        changes["sandbox_root"] = Path(args.sandbox_root)
     if args.source_root is not None:
         changes["source_root"] = Path(args.source_root)
         changes["build_source"] = True
@@ -93,8 +123,18 @@ def apply_cli_overrides(config: SiteConfig, args: argparse.Namespace) -> SiteCon
         changes["output_dir"] = Path(args.output)
     if args.base_url is not None:
         changes["base_url"] = args.base_url
+    if args.artifacts_base_url is not None:
+        changes["artifact_base_url"] = args.artifacts_base_url
     if args.jobs is not None:
         changes["jobs"] = args.jobs
+    if args.verbose is not None:
+        changes["verbose"] = args.verbose
+    if args.toc is not None:
+        changes["table_of_contents"] = args.toc
+    if args.source_tags is not None:
+        changes["generate_source_tags"] = args.source_tags
+    if args.qcc_command is not None:
+        changes["qcc_command"] = args.qcc_command
     if args.mathjax_url is not None:
         changes["mathjax_url"] = args.mathjax_url
     if args.template_root is not None:
@@ -106,17 +146,18 @@ def apply_cli_overrides(config: SiteConfig, args: argparse.Namespace) -> SiteCon
     return replace_config(config, **changes)
 
 
-def build(config: SiteConfig, clean: bool = True) -> Path:
+def build(config: SiteConfig, force_rebuild: bool = False) -> Path:
     output_dir = config.resolved_output_dir()
     builder = StaticSiteBuilder(
         config=config,
         output_dir=output_dir,
         base_url=config.base_url,
     )
-    result = builder.build(clean=clean)
+    result = builder.build(clean=force_rebuild, force_rebuild=force_rebuild)
     print(
         f"Built static site in {result.output_dir} "
-        f"({result.html_files} HTML files, {result.copied_files} copied files)."
+        f"({result.html_files} HTML files, {result.copied_files} copied files, "
+        f"{result.skipped_files} skipped)."
     )
     for warning in result.warnings:
         print(f"warning: {warning}")

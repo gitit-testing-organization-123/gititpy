@@ -2,14 +2,22 @@
 title = "GititPy"
 base_url = ""
 mathjax_url = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
+table_of_contents = true
 
 [paths]
 wiki_root = "wiki-pages"
+sandbox_root = "sandbox"
 source_root = "basilisk/src"
 output = "public"
 template_roots = ["templates"]
 static_roots = ["static"]
 
+[artifacts]
+base_url = ""
+
 [build]
 source = true
+source_tags = true
+qcc_command = "qcc"
 jobs = 4
+verbose = false

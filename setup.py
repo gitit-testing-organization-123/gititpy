@@ -5,10 +5,12 @@ from setuptools.command.bdist_wheel import bdist_wheel
 from setuptools.command.build_py import build_py
 
 
+HELPER_NAMES = ("pagemagic", "literate-c", "codeblock", "sanitize", "urldecode")
+
+
 class BuildPyWithDarcsitHelpers(build_py):
     def run(self):
         super().run()
-        from wiki.darcsit_helpers import HELPER_NAMES
 
         package_src = Path(__file__).parent / "wiki" / "darcsit_helpers" / "src"
         package_dst = Path(self.build_lib) / "wiki" / "darcsit_helpers" / "bin"

@@ -11,17 +11,29 @@ class SiteConfig:
     base_dir: Path
     wiki_title: str = "GititPy"
     wiki_root: Path | None = None
+    sandbox_root: Path | None = None
     source_root: Path | None = None
     output_dir: Path | None = None
     base_url: str = ""
+    artifact_base_url: str = ""
     build_source: bool = True
+    generate_source_tags: bool = True
+    qcc_command: str = "qcc"
     jobs: int | None = None
+    verbose: bool = False
+    table_of_contents: bool = True
     mathjax_url: str = DEFAULT_MATHJAX_URL
     template_roots: tuple[Path, ...] = ()
     static_roots: tuple[Path, ...] = ()
 
     def resolved_wiki_root(self) -> Path:
         return self.resolve_path(self.wiki_root or Path("wiki-pages"))
+
+    def resolved_sandbox_root(self) -> Path | None:
+        if self.sandbox_root is not None:
+            return self.resolve_path(self.sandbox_root)
+        default_sandbox_root = self.base_dir / "sandbox"
+        return default_sandbox_root if default_sandbox_root.exists() else None
 
     def resolved_source_root(self) -> Path | None:
         if not self.build_source:
@@ -66,19 +78,26 @@ def load_config(base_dir: Path, config_path: Path | None = None) -> SiteConfig:
     site = data.get("site", {})
     paths = data.get("paths", {})
     build = data.get("build", {})
+    artifacts = data.get("artifacts", {})
 
     return SiteConfig(
         base_dir=base_dir,
         wiki_title=site.get("title", "GititPy"),
         mathjax_url=site.get("mathjax_url", DEFAULT_MATHJAX_URL),
         base_url=site.get("base_url", ""),
+        artifact_base_url=artifacts.get("base_url", ""),
+        table_of_contents=site.get("table_of_contents", True),
         wiki_root=optional_path(paths.get("wiki_root")),
+        sandbox_root=optional_path(paths.get("sandbox_root")),
         source_root=optional_path(paths.get("source_root")),
         output_dir=optional_path(paths.get("output")),
         template_roots=tuple(Path(path) for path in paths.get("template_roots", [])),
         static_roots=tuple(Path(path) for path in paths.get("static_roots", [])),
         build_source=build.get("source", True),
+        generate_source_tags=build.get("source_tags", True),
+        qcc_command=build.get("qcc_command", "qcc"),
         jobs=build.get("jobs"),
+        verbose=build.get("verbose", False),
     )
 
 
@@ -93,11 +112,17 @@ def replace_config(config: SiteConfig, **changes) -> SiteConfig:
         "base_dir": config.base_dir,
         "wiki_title": config.wiki_title,
         "wiki_root": config.wiki_root,
+        "sandbox_root": config.sandbox_root,
         "source_root": config.source_root,
         "output_dir": config.output_dir,
         "base_url": config.base_url,
+        "artifact_base_url": config.artifact_base_url,
         "build_source": config.build_source,
+        "generate_source_tags": config.generate_source_tags,
+        "qcc_command": config.qcc_command,
         "jobs": config.jobs,
+        "verbose": config.verbose,
+        "table_of_contents": config.table_of_contents,
         "mathjax_url": config.mathjax_url,
         "template_roots": config.template_roots,
         "static_roots": config.static_roots,

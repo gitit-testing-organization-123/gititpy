@@ -60,11 +60,14 @@ class WikiEntry:
 
 
 class WikiRepository:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, seed_defaults: bool = True):
         self.root = Path(root)
+        self.seed_defaults = seed_defaults
 
     def ensure_ready(self):
         self.root.mkdir(parents=True, exist_ok=True)
+        if not self.seed_defaults:
+            return
         for slug, content in {
             "FrontPage": DEFAULT_FRONT_PAGE,
             "Help": DEFAULT_HELP_PAGE,
@@ -102,6 +105,8 @@ class WikiRepository:
         return path
 
     def directory_path(self, slug: str) -> Path:
+        if slug in {"", "."}:
+            return self.root
         normalized = self.normalize_slug(slug)
         path = self.root / normalized
         root = self.root.resolve()

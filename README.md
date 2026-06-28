@@ -24,6 +24,17 @@ For a GitHub Pages project site, pass the repository URL prefix:
 python -m gititpy build --output public --base-url /repository-name
 ```
 
+External artifacts can be linked with deterministic `/artifacts/...` paths and
+rewritten to a separate artifact host:
+
+```bash
+python -m gititpy build --artifacts-base-url https://artifacts.example.org
+```
+
+Then `/artifacts/examples/bubble/movie.mp4` renders as
+`https://artifacts.example.org/examples/bubble/movie.mp4`. Upload those files
+separately with a tool such as `rclone`; `gititpy` only rewrites the links.
+
 If `basilisk/src` exists under the project root, it is rendered under `/src/`
 automatically. You can override or disable this:
 
@@ -39,6 +50,56 @@ Adjust it with:
 python -m gititpy build --output public --jobs 8
 ```
 
+For C source pages, `gititpy` can run `qcc -tags` before rendering so the
+Darcsit `codeblock` helper can annotate declarations, calls, and includes. This
+is enabled by default for `.c` and `.h` files. Disable it or use a specific
+`qcc` binary with:
+
+```bash
+python -m gititpy build --no-source-tags
+python -m gititpy build --qcc-command /path/to/qcc
+```
+
+For a noisier local build, pass `--verbose` or set `verbose = true` under
+`[build]` in `gititpy.toml`.
+
+```bash
+python -m gititpy build --verbose
+```
+
+Builds are incremental by default. `gititpy` writes
+`public/.gititpy-build.json` and skips page/source renders and file copies when
+the input file mtime, input size, renderer config, and expected outputs still
+match. Global indexes and directory pages are still regenerated because they are
+cheap and depend on the full tree.
+
+To ignore the manifest and rebuild from scratch:
+
+```bash
+python -m gititpy build --force-rebuild
+```
+
+Tables of contents are generated with Pandoc by default. Disable them globally
+with `table_of_contents = false` or `--no-toc`, or per page with metadata:
+
+```markdown
+---
+toc: no
+...
+```
+
+To test the packaged application through Nix, run:
+
+```bash
+nix build
+```
+
+Nix only streams derivation logs when requested:
+
+```bash
+nix build -L
+```
+
 ## Site configuration
 
 `gititpy` reads `gititpy.toml` from the project root when it exists. Command
@@ -49,24 +110,34 @@ checked-in config.
 [site]
 title = "My Site"
 base_url = ""
+table_of_contents = true
 
 [paths]
 wiki_root = "wiki-pages"
+sandbox_root = "sandbox"
 source_root = "basilisk/src"
 output = "public"
 template_roots = ["templates"]
 static_roots = ["static"]
 
+[artifacts]
+base_url = "https://artifacts.example.org"
+
 [build]
 source = true
+source_tags = true
+qcc_command = "qcc"
 jobs = 4
+verbose = false
 ```
 
 A consuming site can keep content and customization in this shape:
 
 ```text
 wiki-pages/       Markdown, source pages, images, movies, and other page assets
+sandbox/          Optional sandbox page tree rendered under /sandbox/
 basilisk/src/     Optional tree rendered under /src/
+artifacts/        Optional local staging tree for separately-uploaded artifacts
 templates/        Optional Jinja template overrides, e.g. templates/wiki/base.html
 static/           Optional static overrides copied to /static/
 public/           Generated output

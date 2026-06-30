@@ -580,9 +580,54 @@ class StaticSiteBuilder:
         if rel_path is None:
             return None
         rel_parts = PurePosixPath(rel_path).parts
-        if not rel_parts or rel_parts[0] != artifact_stem or len(rel_parts) == 1:
+        if not rel_parts or len(rel_parts) == 1:
             return None
-        return (PurePosixPath(current_artifact_rel_dir) / PurePosixPath(*rel_parts[1:])).as_posix()
+        if rel_parts[0] == artifact_stem:
+            return (PurePosixPath(current_artifact_rel_dir) / PurePosixPath(*rel_parts[1:])).as_posix()
+
+        sibling_artifact = self.sibling_source_artifact_path(rel_path, current_artifact_rel_dir)
+        if sibling_artifact is not None:
+            return sibling_artifact
+        return None
+
+    def sibling_source_artifact_path(self, rel_path: str, current_artifact_rel_dir: str) -> str | None:
+        current_dir = PurePosixPath(current_artifact_rel_dir)
+        if not current_dir.parts or current_dir.parts[0] != "src":
+            return None
+        candidate = current_dir.parent / PurePosixPath(rel_path)
+        candidate_path = candidate.as_posix()
+        if self.source_artifact_exists(candidate_path):
+            return candidate_path
+        return None
+
+    def source_artifact_exists(self, artifact_path: str) -> bool:
+        normalized = normalized_relative_url_path(artifact_path)
+        if normalized is None:
+            return False
+        parts = PurePosixPath(normalized).parts
+        if not parts or parts[0] != "src":
+            return False
+        rel = Path(*parts[1:])
+
+        roots = []
+        configured_root = self.config.resolved_artifact_root()
+        if configured_root is not None:
+            roots.append(configured_root)
+        default_root = self.config.base_dir / "basilisk" / "build" / "release" / "src"
+        if default_root.exists():
+            roots.append(default_root)
+
+        for root in roots:
+            candidate = root / rel
+            if candidate.is_file() or candidate.is_symlink():
+                return True
+
+        if self.source_tree is not None:
+            candidate = self.source_tree.root / rel
+            if candidate.is_file() or candidate.is_symlink():
+                return True
+
+        return False
 
     def temp_plot_artifact_path(self, path: str, current_artifact_rel_dir: str) -> str | None:
         if not path.startswith("/"):

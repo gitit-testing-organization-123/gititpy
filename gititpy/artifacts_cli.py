@@ -8,6 +8,7 @@ from wiki.artifacts import (
     discover_artifact_jobs,
     jobs_to_json,
     manifest_to_json,
+    stage_artifact_tree,
     stage_artifacts,
 )
 from wiki.plots import generate_plot_artifacts
@@ -110,8 +111,12 @@ def list_artifacts(config, include_empty: bool = False, as_json: bool = False) -
 
 
 def stage(config, destination: Path) -> int:
-    jobs = discover_artifact_jobs(artifact_roots_from_config(config))
-    copied = stage_artifacts(jobs, destination)
+    artifact_root = config.resolved_artifact_root()
+    if artifact_root is not None:
+        copied = stage_artifact_tree(artifact_root, destination, publish_prefix="src")
+    else:
+        jobs = discover_artifact_jobs(artifact_roots_from_config(config))
+        copied = stage_artifacts(jobs, destination)
     print(f"Copied {copied} artifact file(s) to {destination}.")
     return 0
 

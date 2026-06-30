@@ -96,7 +96,12 @@ def existing_artifacts(artifact_dir: Path) -> tuple[str, ...]:
 
 
 def is_stageable_artifact(artifact_dir: Path, path: Path) -> bool:
-    if path.is_symlink() or not path.is_file() or not is_visible_path(artifact_dir, path):
+    if not is_visible_path(artifact_dir, path):
+        return False
+    if path.is_symlink():
+        if not path.exists() or not path.resolve().is_file():
+            return False
+    elif not path.is_file():
         return False
     rel = path.relative_to(artifact_dir)
     # CTest/Basilisk output directories contain the compiled executable
@@ -105,7 +110,7 @@ def is_stageable_artifact(artifact_dir: Path, path: Path) -> bool:
         return False
     if rel.name == "dump":
         return False
-    return not is_compiled_binary(path)
+    return True
 
 
 def is_compiled_binary(path: Path) -> bool:
@@ -189,6 +194,33 @@ def stage_artifacts(jobs: list[ArtifactJob], destination: Path) -> int:
             shutil.copy2(source, target)
             copied += 1
     return copied
+
+
+def stage_artifact_tree(artifact_root: Path, destination: Path, publish_prefix: str = "") -> int:
+    copied = 0
+    for artifact_dir in build_artifact_dirs(artifact_root):
+        artifact_rel_dir = artifact_dir.relative_to(artifact_root).as_posix()
+        artifact_key_dir = prefixed_artifact_key(publish_prefix, artifact_rel_dir)
+        for artifact in existing_artifacts(artifact_dir):
+            source = artifact_dir / artifact
+            target = destination / artifact_key_dir / artifact
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+            copied += 1
+    return copied
+
+
+def build_artifact_dirs(artifact_root: Path) -> tuple[Path, ...]:
+    if not artifact_root.is_dir():
+        return ()
+    dirs = []
+    for path in sorted(artifact_root.rglob("*")):
+        if not path.is_dir() or not is_visible_path(artifact_root, path):
+            continue
+        executable = path / path.name
+        if executable.is_file() or executable.is_symlink():
+            dirs.append(path)
+    return tuple(dirs)
 
 
 def artifact_manifest(jobs: list[ArtifactJob]) -> list[dict]:

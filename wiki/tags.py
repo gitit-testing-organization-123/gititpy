@@ -44,11 +44,14 @@ def generate_qcc_tags(
     if qcc is None:
         return QccTagsResult(warning=f"qcc command not found: {qcc_command}")
 
+    source_root = source_root.resolve()
+    path = path.resolve()
+    qcc_input, cwd = qcc_input_path(path, source_root)
     env = qcc_environment(source_root)
     try:
         result = subprocess.run(
-            [qcc, "-tags", str(path)],
-            cwd=str(path.parent),
+            [qcc, "-tags", qcc_input],
+            cwd=str(cwd),
             env=env,
             capture_output=True,
             check=False,
@@ -63,6 +66,13 @@ def generate_qcc_tags(
         suffix = f": {detail}" if detail else ""
         return QccTagsResult(warning=f"qcc -tags failed for {path}{suffix}")
     return QccTagsResult(generated=True)
+
+
+def qcc_input_path(path: Path, source_root: Path) -> tuple[str, Path]:
+    try:
+        return path.relative_to(source_root).as_posix(), source_root
+    except ValueError:
+        return path.name, path.parent
 
 
 def qcc_environment(source_root: Path) -> dict[str, str]:

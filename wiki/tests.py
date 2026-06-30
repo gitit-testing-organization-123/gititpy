@@ -8,9 +8,12 @@ from pathlib import Path
 from unittest import mock
 
 from gititpy.cli import main
+from gititpy.artifacts_cli import main as artifacts_main
 from gititpy.config import SiteConfig
+from wiki.artifacts import ArtifactRoot, discover_artifact_jobs
 from wiki.bibliography import render_bibliography_html
 from wiki.darcsit import DarcsitHelpers, render as render_markdown, source_to_markdown
+from wiki.plots import expected_plot_artifacts, gnuplot_script_from_source, python_script_from_source
 from wiki.static_site import StaticSiteBuilder
 from wiki.storage import PageNameError, WikiRepository
 from wiki.tags import QccTagsResult, generate_qcc_tags
@@ -192,6 +195,295 @@ More text.
         self.assertIn('name="localkey"', rendered)
         self.assertIn("HAL Result", rendered)
 
+    def test_artifact_detector_finds_basilisk_sibling_artifact_directory(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir) / "src"
+            artifact_dir = root / "test" / "vortex"
+            artifact_dir.mkdir(parents=True)
+            (root / "test" / "vortex.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+            (artifact_dir / "plot.png").write_bytes(b"png")
+            (artifact_dir / "plot.png.tags").write_text("decl x y z\n", encoding="utf-8")
+
+            jobs = discover_artifact_jobs([ArtifactRoot("source", root)])
+
+            self.assertEqual(len(jobs), 1)
+            self.assertEqual(jobs[0].source_rel, "test/vortex.c")
+            self.assertEqual(jobs[0].artifact_rel_dir, "test/vortex")
+            self.assertEqual(jobs[0].existing_artifacts, ("plot.png", "plot.png.tags"))
+
+    def test_artifact_detector_can_use_separate_artifact_root(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir) / "src"
+            artifact_root = Path(tmpdir) / "build" / "src"
+            artifact_dir = artifact_root / "test" / "vortex"
+            (root / "test").mkdir(parents=True)
+            artifact_dir.mkdir(parents=True)
+            (root / "test" / "vortex.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+            (artifact_dir / "movie.mp4").write_bytes(b"movie")
+
+            jobs = discover_artifact_jobs([ArtifactRoot("source", root, artifact_root)])
+
+            self.assertEqual(len(jobs), 1)
+            self.assertEqual(jobs[0].artifact_dir, artifact_dir)
+            self.assertEqual(jobs[0].existing_artifacts, ("movie.mp4",))
+
+    def test_artifact_detector_finds_references_without_existing_directory(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir) / "src"
+            (root / "examples").mkdir(parents=True)
+            (root / "examples" / "bubble.c").write_text(
+                """/**
+![Plot](bubble/plot.png)
+<video src="/artifacts/examples/bubble/movie.mp4"></video>
+[Directory](bubble/1024/)
+ */
+int main(void) { return 0; }
+""",
+                encoding="utf-8",
+            )
+
+            jobs = discover_artifact_jobs([ArtifactRoot("source", root)])
+
+            self.assertEqual(len(jobs), 1)
+            self.assertEqual(jobs[0].referenced_artifacts, ("movie.mp4", "plot.png"))
+
+    def test_artifact_detector_finds_derived_gnuplot_outputs(self):
+        source = """/**
+~~~gnuplot Default plot
+plot 'out'
+~~~
+
+~~~gnuplot PNG plot
+set output 'plot.png'
+plot 'out'
+~~~
+ */
+int main(void) { return 0; }
+"""
+        self.assertEqual(expected_plot_artifacts(source), ("_plot0.svg", "plot.png"))
+
+        script = gnuplot_script_from_source(source)
+
+        self.assertIn("set output '_plot0.svg';", script)
+        self.assertIn("set output 'plot.png'", script)
+        self.assertIn("mogrify -trim plot.png", script)
+        self.assertEqual(python_script_from_source(source), "")
+
+    def test_artifacts_cli_lists_detected_jobs(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            source_root = root / "basilisk" / "src"
+            artifact_dir = source_root / "test" / "vortex"
+            artifact_dir.mkdir(parents=True)
+            (source_root / "test" / "vortex.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+            (artifact_dir / "plot.png").write_bytes(b"png")
+
+            stdout = StringIO()
+            with redirect_stdout(stdout):
+                status = artifacts_main(["--base-dir", str(root), "list"])
+
+            self.assertEqual(status, 0)
+            self.assertIn("source:test/vortex.c", stdout.getvalue())
+            self.assertIn("src/test/vortex/plot.png", stdout.getvalue())
+
+    def test_artifacts_cli_lists_derived_plot_artifacts(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            source_root = root / "basilisk" / "src"
+            artifact_dir = source_root / "test" / "vortex"
+            (source_root / "test").mkdir(parents=True)
+            artifact_dir.mkdir(parents=True)
+            (source_root / "test" / "vortex.c").write_text(
+                "/**\n~~~gnuplot Plot\nset output 'plot.png'\nplot 'out'\n~~~\n*/\n",
+                encoding="utf-8",
+            )
+
+            stdout = StringIO()
+            with redirect_stdout(stdout):
+                status = artifacts_main(["--base-dir", str(root), "plots", "list"])
+
+            self.assertEqual(status, 0)
+            self.assertIn("source:test/vortex.c", stdout.getvalue())
+            self.assertIn("src/test/vortex/plot.png", stdout.getvalue())
+
+    def test_artifacts_cli_skips_derived_plot_artifacts_without_artifact_directory(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            source_root = root / "basilisk" / "src"
+            (source_root / "test").mkdir(parents=True)
+            (source_root / "test" / "vortex.c").write_text(
+                "/**\n~~~gnuplot Plot\nset output 'plot.png'\nplot 'out'\n~~~\n*/\n",
+                encoding="utf-8",
+            )
+
+            stdout = StringIO()
+            with redirect_stdout(stdout):
+                status = artifacts_main(["--base-dir", str(root), "plots", "list"])
+
+            self.assertEqual(status, 0)
+            self.assertNotIn("source:test/vortex.c", stdout.getvalue())
+            self.assertNotIn("src/test/vortex/plot.png", stdout.getvalue())
+
+    def test_artifacts_cli_stages_from_separate_artifact_root(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            source_root = root / "basilisk" / "src"
+            artifact_root = root / "basilisk" / "build" / "release" / "src"
+            artifact_dir = artifact_root / "test" / "vortex"
+            stage_dir = root / "stage"
+            (source_root / "test").mkdir(parents=True)
+            artifact_dir.mkdir(parents=True)
+            (source_root / "test" / "vortex.c").write_text(
+                "/**\n![Plot](vortex/plot.png)\n*/\nint main(void) { return 0; }\n",
+                encoding="utf-8",
+            )
+            (artifact_dir / "plot.png").write_bytes(b"png")
+            (artifact_dir / "log").write_text("log\n", encoding="utf-8")
+            (artifact_dir / "dump").write_bytes(b"dump")
+            (artifact_dir / "vortex").write_bytes(b"binary")
+            (artifact_dir / "linked.png").symlink_to(artifact_dir / "plot.png")
+
+            status = artifacts_main(
+                [
+                    "--base-dir",
+                    str(root),
+                    "--artifact-root",
+                    str(artifact_root),
+                    "stage",
+                    "--dest",
+                    str(stage_dir),
+                ]
+            )
+
+            self.assertEqual(status, 0)
+            self.assertEqual((stage_dir / "src" / "test" / "vortex" / "plot.png").read_bytes(), b"png")
+            self.assertEqual((stage_dir / "src" / "test" / "vortex" / "log").read_text(encoding="utf-8"), "log\n")
+            self.assertFalse((stage_dir / "src" / "test" / "vortex" / "dump").exists())
+            self.assertFalse((stage_dir / "src" / "test" / "vortex" / "vortex").exists())
+            self.assertFalse((stage_dir / "src" / "test" / "vortex" / "linked.png").exists())
+
+    def test_artifacts_cli_generates_plot_scripts(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            source_root = root / "basilisk" / "src"
+            artifact_root = root / "basilisk" / "build" / "release" / "src"
+            artifact_dir = artifact_root / "test" / "vortex"
+            (source_root / "test").mkdir(parents=True)
+            artifact_dir.mkdir(parents=True)
+            (source_root / "test" / "vortex.c").write_text(
+                """/**
+~~~gnuplot Plot
+set output 'plot.png'
+plot 'out'
+~~~
+
+~~~pythonplot Py plot
+import matplotlib.pyplot as plt
+plt.savefig('py.png')
+~~~
+ */
+int main(void) { return 0; }
+""",
+                encoding="utf-8",
+            )
+            completed = mock.Mock(returncode=0, stdout="", stderr="")
+
+            with mock.patch("wiki.plots.subprocess.run", return_value=completed) as run:
+                status = artifacts_main(
+                    [
+                        "--base-dir",
+                        str(root),
+                        "--artifact-root",
+                        str(artifact_root),
+                        "plots",
+                        "generate",
+                        "--gnuplot-command",
+                        "gnuplot",
+                        "--python-command",
+                        "python",
+                    ]
+                )
+
+            self.assertEqual(status, 0)
+            self.assertIn("set output 'plot.png'", (artifact_dir / "plots").read_text(encoding="utf-8"))
+            self.assertIn("plt.savefig('py.png')", (artifact_dir / "plots.py").read_text(encoding="utf-8"))
+            self.assertEqual(run.call_count, 2)
+            self.assertEqual(run.call_args_list[0].args[0][0], "gnuplot")
+            self.assertIn("set term svg enhanced", run.call_args_list[0].args[0][2])
+            self.assertNotIn("set term @SVG", run.call_args_list[0].args[0][2])
+            self.assertEqual(run.call_args_list[0].kwargs["cwd"], artifact_dir)
+            self.assertEqual(run.call_args_list[1].args[0], ["python", "plots.py"])
+            self.assertEqual(run.call_args_list[1].kwargs["cwd"], artifact_dir)
+
+    def test_artifacts_cli_links_source_plot_inputs(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            source_root = root / "basilisk" / "src"
+            artifact_root = root / "basilisk" / "build" / "release" / "src"
+            artifact_dir = artifact_root / "test" / "vortex"
+            source_dir = source_root / "test"
+            source_aux_dir = source_dir / "vortex"
+            source_dir.mkdir(parents=True)
+            source_aux_dir.mkdir()
+            artifact_dir.mkdir(parents=True)
+            (source_dir / "vortex.c").write_text(
+                "/**\n~~~gnuplot Plot\nset output 'plot.png'\nplot 'vortex.ref', 'profile.dat'\n~~~\n*/\n",
+                encoding="utf-8",
+            )
+            (source_dir / "vortex.ref").write_text("1 2\n", encoding="utf-8")
+            (source_aux_dir / "profile.dat").write_text("1 3\n", encoding="utf-8")
+            (source_aux_dir / ".hidden").write_text("hidden\n", encoding="utf-8")
+            completed = mock.Mock(returncode=0, stdout="", stderr="")
+
+            with mock.patch("wiki.plots.subprocess.run", return_value=completed):
+                status = artifacts_main(
+                    [
+                        "--base-dir",
+                        str(root),
+                        "--artifact-root",
+                        str(artifact_root),
+                        "plots",
+                        "generate",
+                    ]
+                )
+
+            self.assertEqual(status, 0)
+            self.assertTrue((artifact_dir / "vortex.ref").is_symlink())
+            self.assertEqual((artifact_dir / "vortex.ref").resolve(), (source_dir / "vortex.ref").resolve())
+            self.assertTrue((artifact_dir / "profile.dat").is_symlink())
+            self.assertEqual((artifact_dir / "profile.dat").resolve(), (source_aux_dir / "profile.dat").resolve())
+            self.assertFalse((artifact_dir / ".hidden").exists())
+
+    def test_artifacts_cli_does_not_generate_plots_without_artifact_directory(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            source_root = root / "basilisk" / "src"
+            artifact_root = root / "basilisk" / "build" / "release" / "src"
+            artifact_dir = artifact_root / "test" / "vortex"
+            (source_root / "test").mkdir(parents=True)
+            (source_root / "test" / "vortex.c").write_text(
+                "/**\n~~~gnuplot Plot\nset output 'plot.png'\nplot 'out'\n~~~\n*/\n",
+                encoding="utf-8",
+            )
+
+            stdout = StringIO()
+            with mock.patch("wiki.plots.subprocess.run") as run, redirect_stdout(stdout):
+                status = artifacts_main(
+                    [
+                        "--base-dir",
+                        str(root),
+                        "--artifact-root",
+                        str(artifact_root),
+                        "plots",
+                        "generate",
+                    ]
+                )
+
+            self.assertEqual(status, 0)
+            self.assertIn("Generated plot artifacts for 0 source file(s)", stdout.getvalue())
+            self.assertFalse(artifact_dir.exists())
+            run.assert_not_called()
+
     def test_c_page_renders_bibliography_block(self):
         source = """/**
 # Bibliography page
@@ -230,10 +522,27 @@ int main(void) {
                     result = generate_qcc_tags(source_path, source_root)
 
             self.assertTrue(result.generated)
-            self.assertEqual(run.call_args.args[0], ["/nix/store/bin/qcc", "-tags", str(source_path)])
-            self.assertEqual(run.call_args.kwargs["cwd"], str(source_path.parent))
+            self.assertEqual(run.call_args.args[0], ["/nix/store/bin/qcc", "-tags", "example.c"])
+            self.assertEqual(run.call_args.kwargs["cwd"], str(source_root.resolve()))
             self.assertEqual(run.call_args.kwargs["env"]["BASILISK"], str(source_root))
             self.assertEqual(run.call_args.kwargs["env"]["BASILISK_INCLUDE_PATH"], str(source_root))
+
+    def test_qcc_tags_generation_uses_source_relative_paths(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir) / ("long-source-root-" + "x" * 80)
+            source_root = root / "basilisk" / "src"
+            source_path = source_root / "gotm" / "turbulence" / "r_ratio.h"
+            source_path.parent.mkdir(parents=True)
+            source_path.write_text("static inline void turbulence_r_ratio (void) {}\n", encoding="utf-8")
+            completed = mock.Mock(returncode=0, stdout="", stderr="")
+
+            with mock.patch("wiki.tags.shutil.which", return_value="/nix/store/bin/qcc"):
+                with mock.patch("wiki.tags.subprocess.run", return_value=completed) as run:
+                    result = generate_qcc_tags(source_path, source_root)
+
+            self.assertTrue(result.generated)
+            self.assertEqual(run.call_args.args[0], ["/nix/store/bin/qcc", "-tags", "gotm/turbulence/r_ratio.h"])
+            self.assertLess(len(run.call_args.args[0][2] + ".tags"), 80)
 
     def test_qcc_tags_generation_reports_missing_qcc(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -357,6 +666,96 @@ int main(void) {
             self.assertIn('poster="https://artifacts.example.org/site/examples/bubble/poster.png"', rendered)
             self.assertIn('href="/Help.html"', rendered)
             self.assertIn('src="/local.mp4"', rendered)
+
+    def test_static_source_render_rewrites_sibling_artifact_links(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / "pages"
+            source_root = root / "basilisk" / "src"
+            output = root / "public"
+            WikiRepository(wiki_root).write_page("FrontPage", "# Front\n", "Create front")
+            (source_root / "test").mkdir(parents=True)
+            (source_root / "test" / "vortex.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+            rendered_content = (
+                '<a href="vortex/vort.mp4">movie</a>'
+                '<img src="vortex/plot 1.png?download=1#frame">'
+                '<a href="other/movie.mp4">other</a>'
+            )
+
+            with mock.patch("wiki.static_site.render_darcsit", return_value=rendered_content):
+                StaticSiteBuilder(
+                    config=SiteConfig(
+                        base_dir=root,
+                        wiki_root=wiki_root,
+                        source_root=source_root,
+                        artifact_base_url="https://artifacts.example.org/site",
+                        generate_source_tags=False,
+                        jobs=1,
+                    ),
+                    output_dir=output,
+                ).build()
+
+            rendered = (output / "src" / "test" / "vortex.c" / "index.html").read_text(encoding="utf-8")
+            self.assertIn('href="https://artifacts.example.org/site/src/test/vortex/vort.mp4"', rendered)
+            self.assertIn('src="https://artifacts.example.org/site/src/test/vortex/plot%201.png?download=1#frame"', rendered)
+            self.assertIn('href="other/movie.mp4"', rendered)
+
+    def test_static_source_render_rewrites_absolute_source_artifact_links(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / "pages"
+            source_root = root / "basilisk" / "src"
+            output = root / "public"
+            WikiRepository(wiki_root).write_page("FrontPage", "# Front\n", "Create front")
+            (source_root / "test").mkdir(parents=True)
+            source_path = source_root / "test" / "stokes.c"
+            source_path.write_text("int main(void) { return 0; }\n", encoding="utf-8")
+            rendered_content = f'<img src="{source_root}/test/stokes/_plot0.svg?1782798642">'
+
+            with mock.patch("wiki.static_site.render_darcsit", return_value=rendered_content):
+                StaticSiteBuilder(
+                    config=SiteConfig(
+                        base_dir=root,
+                        wiki_root=wiki_root,
+                        source_root=source_root,
+                        artifact_base_url="/artifacts",
+                        generate_source_tags=False,
+                        jobs=1,
+                    ),
+                    output_dir=output,
+                ).build()
+
+            rendered = (output / "src" / "test" / "stokes.c" / "index.html").read_text(encoding="utf-8")
+            self.assertIn('src="/artifacts/src/test/stokes/_plot0.svg?1782798642"', rendered)
+            self.assertNotIn(str(source_root), rendered)
+
+    def test_static_source_render_rewrites_temp_plot_links(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / "pages"
+            source_root = root / "basilisk" / "src"
+            output = root / "public"
+            WikiRepository(wiki_root).write_page("FrontPage", "# Front\n", "Create front")
+            (source_root / "test").mkdir(parents=True)
+            (source_root / "test" / "stokes.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+            rendered_content = '<img src="/tmp/tmpabc123/_plot0.svg?1782798642">'
+
+            with mock.patch("wiki.static_site.render_darcsit", return_value=rendered_content):
+                StaticSiteBuilder(
+                    config=SiteConfig(
+                        base_dir=root,
+                        wiki_root=wiki_root,
+                        source_root=source_root,
+                        artifact_base_url="/artifacts",
+                        generate_source_tags=False,
+                        jobs=1,
+                    ),
+                    output_dir=output,
+                ).build()
+
+            rendered = (output / "src" / "test" / "stokes.c" / "index.html").read_text(encoding="utf-8")
+            self.assertIn('src="/artifacts/src/test/stokes/_plot0.svg?1782798642"', rendered)
+            self.assertNotIn("/tmp/tmpabc123", rendered)
 
     def test_static_build_renders_sandbox_from_separate_root(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -567,6 +966,36 @@ int main(void) {
             rendered = (output / "src" / "all-mach.h" / "index.html").read_text(encoding="utf-8")
             self.assertIn('href="/src/poisson.h/"', rendered)
             self.assertNotIn('href="poisson.h/"', rendered)
+
+    def test_unquoted_relative_source_links_rewrite_to_absolute_source_urls(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / "pages"
+            source_root = root / "basilisk" / "src"
+            output = root / "public"
+            WikiRepository(wiki_root).write_page("FrontPage", "# Front\n", "Create front")
+            source_root.mkdir(parents=True)
+            (source_root / "all-mach.h").write_text('#include "run.h"\n', encoding="utf-8")
+            (source_root / "run.h").write_text("void run(void);\n", encoding="utf-8")
+
+            with mock.patch(
+                "wiki.static_site.render_darcsit",
+                return_value='<span class="im">&quot;<a href=./run.h>run.h</a>&quot;</span>',
+            ):
+                StaticSiteBuilder(
+                    config=SiteConfig(
+                        base_dir=root,
+                        wiki_root=wiki_root,
+                        source_root=source_root,
+                        generate_source_tags=False,
+                        jobs=1,
+                    ),
+                    output_dir=output,
+                ).build()
+
+            rendered = (output / "src" / "all-mach.h" / "index.html").read_text(encoding="utf-8")
+            self.assertIn('href="/src/run.h/"', rendered)
+            self.assertNotIn("href=./run.h", rendered)
 
     def test_cli_build_invocation(self):
         with tempfile.TemporaryDirectory() as tmpdir:

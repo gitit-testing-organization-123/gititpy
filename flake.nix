@@ -29,33 +29,42 @@
         pkgs:
         let
           qcc = qccFor pkgs;
+          pythonPackages = pkgs.python312Packages;
+          plotPythonPackages = with pythonPackages; [
+            matplotlib
+            numpy
+          ];
+          runtimeTools = [
+            pkgs.pandoc
+            qcc
+            pkgs.gnuplot
+            pkgs.imagemagick
+            pkgs.gnused
+          ];
         in
-        pkgs.python312Packages.buildPythonApplication {
+        pythonPackages.buildPythonApplication {
           pname = "gititpy";
           version = "0.1.0";
           pyproject = true;
 
           src = ./.;
 
-          build-system = with pkgs.python312Packages; [
+          build-system = with pythonPackages; [
             setuptools
             wheel
           ];
 
-          dependencies = with pkgs.python312Packages; [
+          dependencies = with pythonPackages; [
             jinja2
             pygments
-          ];
+          ] ++ plotPythonPackages;
 
           nativeBuildInputs = [
             pkgs.makeWrapper
             pkgs.stdenv.cc
           ];
 
-          nativeCheckInputs = [
-            pkgs.pandoc
-            qcc
-          ];
+          nativeCheckInputs = runtimeTools;
 
           checkPhase = ''
             runHook preCheck
@@ -73,8 +82,10 @@
           ];
 
           postFixup = ''
-            wrapProgram "$out/bin/gititpy" \
-              --prefix PATH : "${pkgs.lib.makeBinPath [ pkgs.pandoc qcc ]}"
+            for program in gititpy gititpy-artifacts; do
+              wrapProgram "$out/bin/$program" \
+                --prefix PATH : "${pkgs.lib.makeBinPath runtimeTools}"
+            done
           '';
 
           meta = {
@@ -114,6 +125,8 @@
           python = pkgs.python312.withPackages (
             ps: with ps; [
               jinja2
+              matplotlib
+              numpy
               pygments
               pytest
               setuptools
@@ -127,7 +140,10 @@
               python
               pkgs.gcc
               pkgs.git
+              pkgs.gnused
               pkgs.gnumake
+              pkgs.gnuplot
+              pkgs.imagemagick
               pkgs.pandoc
               qcc
               pkgs.sqlite

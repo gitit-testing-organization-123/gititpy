@@ -9,7 +9,7 @@ dist/
 result
 media/
 staticfiles/
-wiki-pages/
+site/
 wiki/darcsit_helpers/bin/*
 !wiki/darcsit_helpers/bin/.gitkeep
 basilisk

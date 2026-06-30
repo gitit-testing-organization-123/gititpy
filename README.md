@@ -156,6 +156,31 @@ copies non-rendered assets such as images or movies, and writes
 generate plot/movie artifacts; those should be produced separately and stored
 alongside the pages or served from external artifact storage.
 
+Inline `~~~gnuplot` and `~~~pythonplot` blocks can be generated after the test
+suite has produced its data files. The artifact tool ports Basilisk's AWK
+extraction logic to Python, writes `plots` and `plots.py` inside each artifact
+directory, and executes them from there.
+Plot generation only runs for `name.c` when the corresponding `name/` artifact
+directory already exists, so sources without test output directories are
+skipped.
+
+```bash
+python -m gititpy.artifacts_cli \
+  --source-root basilisk/src \
+  --artifact-root basilisk/build/release/src \
+  plots list
+
+python -m gititpy.artifacts_cli \
+  --source-root basilisk/src \
+  --artifact-root basilisk/build/release/src \
+  plots generate
+
+python -m gititpy.artifacts_cli \
+  --source-root basilisk/src \
+  --artifact-root basilisk/build/release/src \
+  stage --dest public/artifacts
+```
+
 ## Features
 
 - Store pages as plain files under `wiki-pages/`.

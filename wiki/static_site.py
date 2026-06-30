@@ -19,8 +19,10 @@ from .storage import PageNameError, WikiRepository
 from .tags import generate_qcc_tags, is_qcc_tags_file
 
 
-HREF_RE = re.compile(r'\bhref=(["\'])([^"\']+)(["\'])')
-URL_ATTR_RE = re.compile(r'\b(href|src|poster)=(["\'])([^"\']+)(["\'])')
+ATTRIBUTE_VALUE_RE = r""""([^"]*)"|'([^']*)'|([^\s"'=<>`]+)"""
+HREF_RE = re.compile(r"\bhref=(?:" + ATTRIBUTE_VALUE_RE + r")")
+URL_ATTR_RE = re.compile(r"\b(href|src|poster)=(?:" + ATTRIBUTE_VALUE_RE + r")")
+TEMP_PLOT_RE = re.compile(r"^_plot[0-9]+\.[A-Za-z0-9]+$")
 
 
 @dataclass(frozen=True)
@@ -197,7 +199,10 @@ class StaticSiteBuilder:
             table_of_contents=self.config.table_of_contents,
         )
         context = self.sandbox_page_context(slug) | {
-            "content_html": self.rewrite_content_links(content_html),
+            "content_html": self.rewrite_content_links(
+                content_html,
+                current_artifact_rel_dir=artifact_key_dir_for_slug(slug, prefix="sandbox"),
+            ),
             "revision": None,
             "source": source,
         }
@@ -329,7 +334,11 @@ class StaticSiteBuilder:
             context = self.base_context() | {
                 "page_title": f"/src/{rel}",
                 "source_path": rel,
-                "content_html": self.rewrite_content_links(content_html, current_source_path=rel),
+                "content_html": self.rewrite_content_links(
+                    content_html,
+                    current_source_path=rel,
+                    current_artifact_rel_dir=artifact_key_dir_for_slug(rel, prefix="src"),
+                ),
             }
             self.write_html(
                 output_path,
@@ -447,35 +456,91 @@ class StaticSiteBuilder:
             self.warn(f"Rendered /src/{rel} as plain code after Darcsit failure: {exc}")
             return render_markdown(fenced_code(source, language), table_of_contents=False)
 
-    def rewrite_content_links(self, html: str, current_source_path: str | None = None) -> str:
-        html = self.rewrite_artifact_links(html)
+    def rewrite_content_links(
+        self,
+        html: str,
+        current_source_path: str | None = None,
+        current_artifact_rel_dir: str | None = None,
+    ) -> str:
+        html = self.rewrite_artifact_links(html, current_artifact_rel_dir=current_artifact_rel_dir)
         return self.rewrite_source_links(html, current_source_path=current_source_path)
 
-    def rewrite_artifact_links(self, html: str) -> str:
+    def rewrite_artifact_links(self, html: str, current_artifact_rel_dir: str | None = None) -> str:
         if not self.config.artifact_base_url:
             return html
 
         def replace(match: re.Match[str]) -> str:
             attribute = match.group(1)
-            quote_char = match.group(2)
-            value = match.group(3)
-            rewritten = self.rewrite_artifact_url(value)
+            quote_char = '"' if match.group(2) is not None else "'" if match.group(3) is not None else '"'
+            value = match.group(2) or match.group(3) or match.group(4)
+            rewritten = self.rewrite_artifact_url(value, current_artifact_rel_dir=current_artifact_rel_dir)
             return f"{attribute}={quote_char}{rewritten}{quote_char}"
 
         return URL_ATTR_RE.sub(replace, html)
 
-    def rewrite_artifact_url(self, value: str) -> str:
+    def rewrite_artifact_url(self, value: str, current_artifact_rel_dir: str | None = None) -> str:
         parsed = urlsplit(value)
-        if parsed.scheme or parsed.netloc or not parsed.path.startswith("/artifacts/"):
+        if parsed.scheme or parsed.netloc:
+            return value
+        artifact_path = self.artifact_path_for_url(parsed.path, current_artifact_rel_dir)
+        if artifact_path is None:
             return value
         artifact_base_url = self.config.artifact_base_url.rstrip("/")
-        artifact_path = quote(unquote(parsed.path.removeprefix("/artifacts/")), safe="/._-~")
+        artifact_path = quote(artifact_path, safe="/._-~")
         rewritten = f"{artifact_base_url}/{artifact_path}"
         if parsed.query:
             rewritten = f"{rewritten}?{parsed.query}"
         if parsed.fragment:
             rewritten = f"{rewritten}#{parsed.fragment}"
         return rewritten
+
+    def artifact_path_for_url(self, path: str, current_artifact_rel_dir: str | None = None) -> str | None:
+        decoded = unquote(path)
+        if decoded.startswith("/artifacts/"):
+            rel = decoded.removeprefix("/artifacts/").strip("/")
+            return normalized_relative_url_path(rel)
+
+        absolute_source_artifact = self.absolute_source_artifact_path(decoded)
+        if absolute_source_artifact is not None:
+            return absolute_source_artifact
+
+        current_artifact_rel_dir = normalized_relative_url_path(current_artifact_rel_dir or "")
+        if current_artifact_rel_dir is None:
+            return None
+
+        temp_plot_artifact = self.temp_plot_artifact_path(decoded, current_artifact_rel_dir)
+        if temp_plot_artifact is not None:
+            return temp_plot_artifact
+
+        if decoded.startswith("/"):
+            return None
+
+        artifact_stem = PurePosixPath(current_artifact_rel_dir).name
+        rel_path = normalized_relative_url_path(decoded)
+        if rel_path is None:
+            return None
+        rel_parts = PurePosixPath(rel_path).parts
+        if not rel_parts or rel_parts[0] != artifact_stem or len(rel_parts) == 1:
+            return None
+        return (PurePosixPath(current_artifact_rel_dir) / PurePosixPath(*rel_parts[1:])).as_posix()
+
+    def temp_plot_artifact_path(self, path: str, current_artifact_rel_dir: str) -> str | None:
+        if not path.startswith("/"):
+            return None
+        name = PurePosixPath(path).name
+        if not TEMP_PLOT_RE.match(name):
+            return None
+        return (PurePosixPath(current_artifact_rel_dir) / name).as_posix()
+
+    def absolute_source_artifact_path(self, path: str) -> str | None:
+        if self.source_tree is None or not path.startswith("/"):
+            return None
+        normalized_path = Path(os.path.normpath(path))
+        try:
+            source_rel = normalized_path.relative_to(self.source_tree.root.resolve())
+        except ValueError:
+            return None
+        return prefixed_source_artifact_path(source_rel.as_posix())
 
     def generate_source_tags(self, path: Path):
         if self.source_tree is None or not self.config.generate_source_tags:
@@ -494,8 +559,8 @@ class StaticSiteBuilder:
             return html
 
         def replace(match: re.Match[str]) -> str:
-            quote_char = match.group(1)
-            href = match.group(2)
+            quote_char = '"' if match.group(1) is not None else "'" if match.group(2) is not None else '"'
+            href = match.group(1) or match.group(2) or match.group(3)
             rewritten = self.rewrite_source_href(href, current_source_path=current_source_path)
             return f"href={quote_char}{rewritten}{quote_char}"
 
@@ -959,6 +1024,31 @@ def source_parent(slug: str) -> str:
     if not slug or "/" not in slug:
         return ""
     return slug.rsplit("/", 1)[0]
+
+
+def artifact_rel_dir_for_slug(slug: str) -> str:
+    return PurePosixPath(slug).with_suffix("").as_posix()
+
+
+def artifact_key_dir_for_slug(slug: str, prefix: str = "") -> str:
+    rel = artifact_rel_dir_for_slug(slug)
+    if not prefix:
+        return rel
+    return (PurePosixPath(prefix.strip("/")) / rel).as_posix()
+
+
+def prefixed_source_artifact_path(rel: str) -> str | None:
+    normalized = normalized_relative_url_path(rel)
+    if normalized is None:
+        return None
+    return (PurePosixPath("src") / normalized).as_posix()
+
+
+def normalized_relative_url_path(path: str) -> str | None:
+    normalized = PurePosixPath(os.path.normpath(path.strip("/")))
+    if normalized.is_absolute() or ".." in normalized.parts or normalized.as_posix() == ".":
+        return None
+    return normalized.as_posix()
 
 
 def directory_parent(slug: str) -> str:

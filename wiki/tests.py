@@ -618,6 +618,57 @@ int main(void) {
             self.assertIn('href="/src/example.c/"', (output / "index.html").read_text(encoding="utf-8"))
             self.assertIn('href="/src/example.c/"', (output / "src" / "README.md" / "index.html").read_text(encoding="utf-8"))
 
+    def test_static_build_writes_sitemap_and_robots_txt(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / "pages"
+            sandbox_root = root / "sandbox"
+            source_root = root / "basilisk" / "src"
+            output = root / "public"
+            WikiRepository(wiki_root).write_page("FrontPage", "# Front\n", "Create front")
+            WikiRepository(wiki_root).write_page("Guide", "# Guide\n", "Create guide")
+            WikiRepository(wiki_root).write_page("docs/Page", "# Docs\n", "Create docs")
+            sandbox_repo = WikiRepository(sandbox_root, seed_defaults=False)
+            sandbox_repo.write_page("README", "# Sandbox\n", "Create sandbox")
+            (source_root / "sub").mkdir(parents=True)
+            (source_root / "sub" / "example.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+            (source_root / "sub" / "example.c.tags").write_text("decl main sub/example.c 1\n", encoding="utf-8")
+            (source_root / "blob.bin").write_bytes(b"\x00\x01")
+
+            StaticSiteBuilder(
+                config=SiteConfig(
+                    base_dir=root,
+                    wiki_root=wiki_root,
+                    sandbox_root=sandbox_root,
+                    source_root=source_root,
+                    generate_source_tags=False,
+                    jobs=1,
+                ),
+                output_dir=output,
+                base_url="https://example.org/docs",
+            ).build()
+
+            sitemap = (output / "sitemap.xml").read_text(encoding="utf-8")
+            self.assertIn("<loc>https://example.org/docs/</loc>", sitemap)
+            self.assertIn("<loc>https://example.org/docs/Guide.html</loc>", sitemap)
+            self.assertIn("<loc>https://example.org/docs/docs/</loc>", sitemap)
+            self.assertIn("<loc>https://example.org/docs/docs/Page.html</loc>", sitemap)
+            self.assertIn("<loc>https://example.org/docs/sandbox/README.html</loc>", sitemap)
+            self.assertIn("<loc>https://example.org/docs/src/sub/</loc>", sitemap)
+            self.assertIn("<loc>https://example.org/docs/src/sub/example.c/</loc>", sitemap)
+            self.assertNotIn("example.c.tags", sitemap)
+            self.assertNotIn("blob.bin", sitemap)
+            self.assertNotIn("_search.html", sitemap)
+            self.assertNotIn("_history", sitemap)
+            self.assertNotIn("_raw", sitemap)
+
+            robots = (output / "robots.txt").read_text(encoding="utf-8")
+            self.assertIn("Allow: /docs/", robots)
+            self.assertIn("Disallow: /docs/_raw/", robots)
+            self.assertIn("Disallow: /docs/_history/", robots)
+            self.assertIn("Disallow: /docs/_search.html", robots)
+            self.assertIn("Sitemap: https://example.org/docs/sitemap.xml", robots)
+
     def test_static_build_can_skip_default_source_tree(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -996,6 +1047,38 @@ int main(void) {
             rendered = (output / "src" / "all-mach.h" / "index.html").read_text(encoding="utf-8")
             self.assertIn('href="/src/run.h/"', rendered)
             self.assertNotIn("href=./run.h", rendered)
+
+    def test_source_root_relative_tag_links_are_not_rewritten_as_artifacts(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / "pages"
+            source_root = root / "basilisk" / "src"
+            output = root / "public"
+            WikiRepository(wiki_root).write_page("FrontPage", "# Front\n", "Create front")
+            (source_root / "ast").mkdir(parents=True)
+            (source_root / "ast" / "ast.h").write_text('#include "stack.h"\n', encoding="utf-8")
+            (source_root / "ast" / "stack.h").write_text("typedef struct Stack Stack;\n", encoding="utf-8")
+
+            with mock.patch(
+                "wiki.static_site.render_darcsit",
+                return_value='<a href=ast/stack.h>stack.h</a><a href=ast/ast.h#Ast>Ast</a>',
+            ):
+                StaticSiteBuilder(
+                    config=SiteConfig(
+                        base_dir=root,
+                        wiki_root=wiki_root,
+                        source_root=source_root,
+                        artifact_base_url="/artifacts",
+                        generate_source_tags=False,
+                        jobs=1,
+                    ),
+                    output_dir=output,
+                ).build()
+
+            rendered = (output / "src" / "ast" / "ast.h" / "index.html").read_text(encoding="utf-8")
+            self.assertIn('href="/src/ast/stack.h/"', rendered)
+            self.assertIn('href="/src/ast/ast.h/#Ast"', rendered)
+            self.assertNotIn("/artifacts/src/ast/ast/stack.h", rendered)
 
     def test_cli_build_invocation(self):
         with tempfile.TemporaryDirectory() as tmpdir:

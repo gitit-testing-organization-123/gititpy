@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from types import SimpleNamespace
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
+from xml.sax.saxutils import escape as xml_escape
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -96,6 +97,9 @@ class StaticSiteBuilder:
             self.log("Skipping source tree")
         self.log("Writing search index")
         self.write_search_index()
+        self.log("Writing sitemap and robots.txt")
+        self.write_sitemap()
+        self.write_robots_txt()
         self.remove_stale_manifest_outputs()
         self.write_manifest()
 
@@ -414,6 +418,55 @@ class StaticSiteBuilder:
         self.log(f"Write {path}")
         self.copied_files += 1
 
+    def write_sitemap(self):
+        urls = self.sitemap_urls()
+        lines = [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        ]
+        for url in urls:
+            lines.append("  <url>")
+            lines.append(f"    <loc>{xml_escape(url)}</loc>")
+            lines.append("  </url>")
+        lines.append("</urlset>")
+        path = self.output_dir / "sitemap.xml"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        self.log(f"Write {path}")
+        self.copied_files += 1
+
+    def sitemap_urls(self) -> list[str]:
+        urls = [self.urls.front_url()]
+        urls.extend(self.urls.page_url(slug) for slug in self.renderable_wiki_slugs() if slug != "FrontPage")
+        urls.extend(self.urls.directory_url(slug) for slug in self.renderable_wiki_directory_slugs())
+
+        if self.sandbox_repo is not None:
+            urls.append(self.urls.sandbox_root_url())
+            urls.extend(self.urls.sandbox_page_url(slug) for slug in self.renderable_sandbox_slugs())
+            urls.extend(self.urls.sandbox_directory_url(slug) for slug in self.renderable_sandbox_directory_slugs())
+
+        if self.source_tree is not None and self.source_tree.root.exists():
+            urls.append(self.urls.source_root_url())
+            urls.extend(self.urls.source_directory_url(path) for path in self.renderable_source_directory_paths())
+            urls.extend(self.urls.source_page_url(path) for path in self.renderable_source_file_paths())
+
+        return sorted(unique_urls(urls), key=str.casefold)
+
+    def write_robots_txt(self):
+        lines = [
+            "User-agent: *",
+            f"Allow: {self.urls.robots_path('/')}",
+            f"Disallow: {self.urls.robots_path('/_raw/')}",
+            f"Disallow: {self.urls.robots_path('/_history/')}",
+            f"Disallow: {self.urls.robots_path('/_search.html')}",
+            "",
+            f"Sitemap: {self.urls.sitemap_url()}",
+            "",
+        ]
+        path = self.output_dir / "robots.txt"
+        path.write_text("\n".join(lines), encoding="utf-8")
+        self.log(f"Write {path}")
+        self.copied_files += 1
+
     def copy_raw_page(self, slug: str, source_path: Path):
         self.copy_file(source_path, self.urls.raw_output_path(self.output_dir, self.repo, slug))
 
@@ -462,8 +515,8 @@ class StaticSiteBuilder:
         current_source_path: str | None = None,
         current_artifact_rel_dir: str | None = None,
     ) -> str:
-        html = self.rewrite_artifact_links(html, current_artifact_rel_dir=current_artifact_rel_dir)
-        return self.rewrite_source_links(html, current_source_path=current_source_path)
+        html = self.rewrite_source_links(html, current_source_path=current_source_path)
+        return self.rewrite_artifact_links(html, current_artifact_rel_dir=current_artifact_rel_dir)
 
     def rewrite_artifact_links(self, html: str, current_artifact_rel_dir: str | None = None) -> str:
         if not self.config.artifact_base_url:
@@ -583,15 +636,23 @@ class StaticSiteBuilder:
     def source_rel_for_href_path(self, path: str, current_source_path: str | None = None) -> str | None:
         decoded = unquote(path)
         if decoded.startswith("/src/"):
-            rel = decoded.removeprefix("/src/")
+            return normalized_source_href_path(decoded.removeprefix("/src/"))
         elif not decoded.startswith("/") and current_source_path:
-            rel = (PurePosixPath(current_source_path).parent / decoded).as_posix()
+            candidates = [
+                (PurePosixPath(current_source_path).parent / decoded).as_posix(),
+                decoded,
+            ]
+            fallback = None
+            for candidate in candidates:
+                rel = normalized_source_href_path(candidate)
+                if rel is None:
+                    continue
+                fallback = fallback or rel
+                if self.is_renderable_source_rel(rel):
+                    return rel
+            return fallback
         else:
             return None
-        normalized = PurePosixPath(os.path.normpath(rel))
-        if normalized.is_absolute() or ".." in normalized.parts or normalized.as_posix() == ".":
-            return None
-        return normalized.as_posix()
 
     def is_renderable_source_rel(self, rel: str) -> bool:
         if self.source_tree is None:
@@ -690,6 +751,14 @@ class StaticSiteBuilder:
                 slugs.append(self.repo.page_slug_for_path(path.relative_to(self.repo.root)))
         return sorted(slugs, key=str.casefold)
 
+    def renderable_wiki_directory_slugs(self) -> list[str]:
+        slugs = []
+        for path in self.visible_directories(self.repo.root):
+            if path == self.repo.root or self.is_shadowed_wiki_sandbox_path(path):
+                continue
+            slugs.append(path.relative_to(self.repo.root).as_posix())
+        return sorted(slugs, key=str.casefold)
+
     def renderable_sandbox_slugs(self) -> list[str]:
         if self.sandbox_repo is None:
             return []
@@ -698,6 +767,36 @@ class StaticSiteBuilder:
             if self.is_renderable_sandbox_file(path):
                 slugs.append(self.sandbox_repo.page_slug_for_path(path.relative_to(self.sandbox_repo.root)))
         return sorted(slugs, key=str.casefold)
+
+    def renderable_sandbox_directory_slugs(self) -> list[str]:
+        if self.sandbox_repo is None:
+            return []
+        slugs = []
+        for path in self.visible_directories(self.sandbox_repo.root):
+            if path == self.sandbox_repo.root:
+                continue
+            slugs.append(path.relative_to(self.sandbox_repo.root).as_posix())
+        return sorted(slugs, key=str.casefold)
+
+    def renderable_source_directory_paths(self) -> list[str]:
+        if self.source_tree is None or not self.source_tree.root.exists():
+            return []
+        paths = []
+        for path in self.visible_directories(self.source_tree.root):
+            if path == self.source_tree.root:
+                continue
+            paths.append(path.relative_to(self.source_tree.root).as_posix())
+        return sorted(paths, key=str.casefold)
+
+    def renderable_source_file_paths(self) -> list[str]:
+        if self.source_tree is None or not self.source_tree.root.exists():
+            return []
+        paths = []
+        for path in self.visible_files(self.source_tree.root):
+            if is_qcc_tags_file(path) or not self.will_render_source_path(path):
+                continue
+            paths.append(path.relative_to(self.source_tree.root).as_posix())
+        return sorted(paths, key=str.casefold)
 
     def is_renderable_wiki_file(self, path: Path) -> bool:
         slug = self.repo.page_slug_for_path(path.relative_to(self.repo.root))
@@ -879,6 +978,9 @@ class StaticUrls:
     def normalize_base_url(self, base_url: str) -> str:
         if not base_url or base_url == "/":
             return ""
+        parsed = urlsplit(base_url)
+        if parsed.scheme and parsed.netloc:
+            return base_url.rstrip("/")
         return f"/{base_url.strip('/')}"
 
     def front_url(self) -> str:
@@ -895,6 +997,9 @@ class StaticUrls:
 
     def search_index_url(self) -> str:
         return self.url("/search-index.json")
+
+    def sitemap_url(self) -> str:
+        return self.url("/sitemap.xml")
 
     def static_url(self) -> str:
         return self.url("/static/")
@@ -998,6 +1103,10 @@ class StaticUrls:
             return f"{self.base_url}/" if self.base_url else "/"
         return f"{self.base_url}{quote(path, safe='/._-~')}"
 
+    def robots_path(self, path: str) -> str:
+        parsed = urlsplit(self.url(path))
+        return parsed.path or "/"
+
     def local_path(self, path: str) -> Path:
         return Path(PurePosixPath(path))
 
@@ -1044,8 +1153,26 @@ def prefixed_source_artifact_path(rel: str) -> str | None:
     return (PurePosixPath("src") / normalized).as_posix()
 
 
+def unique_urls(urls) -> list[str]:
+    unique = []
+    seen = set()
+    for url in urls:
+        if url in seen:
+            continue
+        seen.add(url)
+        unique.append(url)
+    return unique
+
+
 def normalized_relative_url_path(path: str) -> str | None:
     normalized = PurePosixPath(os.path.normpath(path.strip("/")))
+    if normalized.is_absolute() or ".." in normalized.parts or normalized.as_posix() == ".":
+        return None
+    return normalized.as_posix()
+
+
+def normalized_source_href_path(path: str) -> str | None:
+    normalized = PurePosixPath(os.path.normpath(path))
     if normalized.is_absolute() or ".." in normalized.parts or normalized.as_posix() == ".":
         return None
     return normalized.as_posix()

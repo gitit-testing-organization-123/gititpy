@@ -669,6 +669,63 @@ int main(void) {
             self.assertIn("Disallow: /docs/_search.html", robots)
             self.assertIn("Sitemap: https://example.org/docs/sitemap.xml", robots)
 
+    def test_static_build_writes_canonical_links_for_indexable_pages(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / "pages"
+            sandbox_root = root / "sandbox"
+            source_root = root / "basilisk" / "src"
+            output = root / "public"
+            WikiRepository(wiki_root).write_page("FrontPage", "# Front\n", "Create front")
+            WikiRepository(wiki_root).write_page("Guide", "# Guide\n", "Create guide")
+            WikiRepository(wiki_root).write_page("docs/Page", "# Docs\n", "Create docs")
+            sandbox_repo = WikiRepository(sandbox_root, seed_defaults=False)
+            sandbox_repo.write_page("README", "# Sandbox\n", "Create sandbox")
+            (source_root / "sub").mkdir(parents=True)
+            (source_root / "sub" / "example.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+
+            StaticSiteBuilder(
+                config=SiteConfig(
+                    base_dir=root,
+                    wiki_root=wiki_root,
+                    sandbox_root=sandbox_root,
+                    source_root=source_root,
+                    generate_source_tags=False,
+                    jobs=1,
+                ),
+                output_dir=output,
+                base_url="https://example.org/docs",
+            ).build()
+
+            self.assertIn(
+                '<link rel="canonical" href="https://example.org/docs/">',
+                (output / "index.html").read_text(encoding="utf-8"),
+            )
+            self.assertIn(
+                '<link rel="canonical" href="https://example.org/docs/Guide.html">',
+                (output / "Guide.html").read_text(encoding="utf-8"),
+            )
+            self.assertIn(
+                '<link rel="canonical" href="https://example.org/docs/docs/">',
+                (output / "docs" / "index.html").read_text(encoding="utf-8"),
+            )
+            self.assertIn(
+                '<link rel="canonical" href="https://example.org/docs/sandbox/README.html">',
+                (output / "sandbox" / "README.html").read_text(encoding="utf-8"),
+            )
+            self.assertIn(
+                '<link rel="canonical" href="https://example.org/docs/src/sub/example.c/">',
+                (output / "src" / "sub" / "example.c" / "index.html").read_text(encoding="utf-8"),
+            )
+            self.assertNotIn(
+                'rel="canonical"',
+                (output / "_search.html").read_text(encoding="utf-8"),
+            )
+            self.assertNotIn(
+                'rel="canonical"',
+                (output / "_history" / "Guide.html").read_text(encoding="utf-8"),
+            )
+
     def test_static_build_can_skip_default_source_tree(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

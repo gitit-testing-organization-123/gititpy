@@ -226,6 +226,7 @@ class StaticSiteBuilder:
         parent = directory_parent(rel_slug)
         context = self.base_context() | {
             "page_title": f"{rel_slug}/" if rel_slug else "Pages",
+            "canonical_url": self.urls.directory_url(rel_slug),
             "directory_path": rel_slug,
             "parent_path": parent,
             "parent_url": self.urls.directory_url(parent) if parent else self.urls.index_url(),
@@ -248,6 +249,7 @@ class StaticSiteBuilder:
         parent = directory_parent(rel_slug)
         context = self.base_context() | {
             "page_title": f"sandbox/{rel_slug}/" if rel_slug else "sandbox/",
+            "canonical_url": self.urls.sandbox_directory_url(rel_slug),
             "directory_path": f"sandbox/{rel_slug}".rstrip("/"),
             "parent_path": parent,
             "parent_url": self.urls.sandbox_directory_url(parent)
@@ -283,7 +285,7 @@ class StaticSiteBuilder:
         self.write_html(self.output_dir / "_search.html", self.render_template("wiki/search.html", context))
 
     def render_history_page(self, slug: str):
-        context = self.page_context(slug) | {"revisions": self.repo.history(slug)}
+        context = self.page_context(slug) | {"canonical_url": None, "revisions": self.repo.history(slug)}
         self.write_html(
             self.urls.history_output_path(self.output_dir, slug),
             self.render_template("wiki/history.html", context),
@@ -292,7 +294,10 @@ class StaticSiteBuilder:
     def render_sandbox_history_page(self, slug: str):
         if self.sandbox_repo is None:
             return
-        context = self.sandbox_page_context(slug) | {"revisions": self.sandbox_repo.history(slug)}
+        context = self.sandbox_page_context(slug) | {
+            "canonical_url": None,
+            "revisions": self.sandbox_repo.history(slug),
+        }
         self.write_html(
             self.urls.sandbox_history_output_path(self.output_dir, slug),
             self.render_template("wiki/history.html", context),
@@ -337,6 +342,7 @@ class StaticSiteBuilder:
             content_html = self.render_source_content(source, rel, path)
             context = self.base_context() | {
                 "page_title": f"/src/{rel}",
+                "canonical_url": self.urls.source_page_url(rel),
                 "source_path": rel,
                 "content_html": self.rewrite_content_links(
                     content_html,
@@ -364,6 +370,7 @@ class StaticSiteBuilder:
         parent = source_parent(rel)
         context = self.base_context() | {
             "page_title": f"/src/{rel}" if rel else "/src",
+            "canonical_url": self.urls.source_directory_url(rel),
             "source_path": rel,
             "parent_path": parent,
             "parent_url": self.urls.source_directory_url(parent)
@@ -666,6 +673,7 @@ class StaticSiteBuilder:
     def base_context(self) -> dict:
         return {
             "wiki_title": self.config.wiki_title,
+            "canonical_url": None,
             "front_url": self.urls.front_url(),
             "all_pages_url": self.urls.index_url(),
             "recent_url": self.urls.recent_url(),
@@ -684,6 +692,7 @@ class StaticSiteBuilder:
             "page_title": title_for(slug),
             "page_exists": self.repo.exists(slug),
             "page_url": self.urls.page_url(slug),
+            "canonical_url": self.urls.page_url(slug),
             "edit_page_url": "",
             "history_page_url": self.urls.history_url(slug),
             "raw_page_url": self.urls.raw_url(self.repo, slug),
@@ -698,6 +707,7 @@ class StaticSiteBuilder:
             "page_title": title_for(slug),
             "page_exists": self.sandbox_repo.exists(slug),
             "page_url": self.urls.sandbox_page_url(slug),
+            "canonical_url": self.urls.sandbox_page_url(slug),
             "edit_page_url": "",
             "history_page_url": self.urls.sandbox_history_url(slug),
             "raw_page_url": self.urls.sandbox_raw_url(self.sandbox_repo, slug),

@@ -4,6 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ wiki_title }} - {{ page_title }}</title>
+    {% if canonical_url %}
+    <link rel="canonical" href="{{ canonical_url }}">
+    {% endif %}
     <link href="{{ static_url }}wiki/css/custom.css" rel="stylesheet" media="screen" type="text/css">
     <link href="{{ static_url }}wiki/css/print.css" rel="stylesheet" media="print" type="text/css">
     <link href="{{ static_url }}wiki/css/gititpy.css" rel="stylesheet" media="screen" type="text/css">

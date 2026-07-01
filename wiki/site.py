@@ -628,6 +628,7 @@ class StaticSiteBuilder:
                 source_path=path,
                 table_of_contents=self.config.table_of_contents,
                 basilisk_root=basilisk_root,
+                basilisk_url=self.urls.base_url or None,
             )
         except RuntimeError as exc:
             language = language_for_slug(slug)

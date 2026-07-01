@@ -37,6 +37,9 @@ You can also use simple wiki links:
 Run the static build command to render the page tree into publishable HTML.
 """
 
+FRONT_PAGE_SLUG = "Front Page"
+FRONT_PAGE_ALIASES = {"Front Page", "FrontPage", "Front_Page"}
+
 
 class PageNameError(ValueError):
     pass
@@ -59,7 +62,7 @@ class WikiRepository:
         if not self.seed_defaults or self.has_page_files():
             return
         for slug, content in {
-            "Front Page": DEFAULT_FRONT_PAGE,
+            FRONT_PAGE_SLUG: DEFAULT_FRONT_PAGE,
             "Help": DEFAULT_HELP_PAGE,
         }.items():
             path = self.page_path(slug)
@@ -77,9 +80,11 @@ class WikiRepository:
         return False
 
     def normalize_slug(self, value: str | None) -> str:
-        slug = (value or "Front Page").strip().strip("/")
+        slug = (value or FRONT_PAGE_SLUG).strip().strip("/")
         if not slug:
-            return "Front Page"
+            return FRONT_PAGE_SLUG
+        if slug in FRONT_PAGE_ALIASES:
+            return FRONT_PAGE_SLUG
         slug = re.sub(r"\s+", "_", slug)
         path = PurePosixPath(slug)
         if path.is_absolute() or ".." in path.parts:
@@ -103,13 +108,18 @@ class WikiRepository:
 
     def existing_page_path(self, slug: str, normalized: str) -> Path | None:
         candidates = []
-        raw = (slug or "Front Page").strip().strip("/")
+        raw = (slug or FRONT_PAGE_SLUG).strip().strip("/")
         if raw:
             self.validate_path_parts(PurePosixPath(raw))
             if PurePosixPath(raw).suffix:
                 candidates.append(self.root / raw)
             else:
                 candidates.extend((self.root / f"{raw}.page", self.root / f"{raw}.md"))
+        if normalized == FRONT_PAGE_SLUG:
+            for alias in FRONT_PAGE_ALIASES:
+                if alias == raw:
+                    continue
+                candidates.extend((self.root / f"{alias}.page", self.root / f"{alias}.md"))
         normalized_path = PurePosixPath(normalized)
         if normalized_path.suffix:
             candidates.append(self.root / normalized_path.as_posix())
@@ -188,4 +198,6 @@ class WikiRepository:
         rel_path = PurePosixPath(path.as_posix())
         if rel_path.suffix in {".md", ".page"}:
             rel_path = rel_path.with_suffix("")
+        if rel_path.as_posix() in FRONT_PAGE_ALIASES:
+            return FRONT_PAGE_SLUG
         return rel_path.as_posix()

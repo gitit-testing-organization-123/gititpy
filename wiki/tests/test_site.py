@@ -80,6 +80,69 @@ class StaticSiteTests(unittest.TestCase):
             self.assertIn('Rendered as source.', rendered)
             self.assertIn('sourceCode', rendered)
 
+    def test_static_build_treats_legacy_frontpage_file_as_root_index(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / 'pages'
+            output = root / 'public'
+            wiki_root.mkdir()
+            (wiki_root / 'FrontPage.md').write_text('# Legacy Front\n', encoding='utf-8')
+
+            StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False), output_dir=output).build()
+
+            self.assertIn('Legacy Front', (output / 'index.html').read_text(encoding='utf-8'))
+            self.assertFalse((output / 'FrontPage' / 'index.html').exists())
+            self.assertFalse((output / 'Front_Page' / 'index.html').exists())
+
+    def test_static_build_renders_build_scripts_as_whole_file_code(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / 'pages'
+            source_root = root / 'basilisk' / 'src'
+            output = root / 'public'
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
+            source_root.mkdir(parents=True)
+            (source_root / 'CMakeLists.txt').write_text('cmake_minimum_required(VERSION 3.20)\nproject(example)\n', encoding='utf-8')
+            (source_root / 'dotest').write_text('#!/usr/bin/env bash\n/**\n# Not literate prose\n*/\necho ok\n', encoding='utf-8')
+
+            StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, source_root=source_root, generate_source_tags=False, jobs=1), output_dir=output).build()
+
+            cmake = (output / 'src' / 'CMakeLists.txt' / 'index.html').read_text(encoding='utf-8')
+            script = (output / 'src' / 'dotest' / 'index.html').read_text(encoding='utf-8')
+            self.assertIn('cmake_minimum_required', cmake)
+            self.assertIn('sourceCode cmake', cmake)
+            self.assertIn('echo', script)
+            self.assertIn('ok', script)
+            self.assertIn('sourceCode bash', script)
+            self.assertNotIn('<h1 id="not-literate-prose">Not literate prose</h1>', script)
+
+    def test_static_build_passes_base_url_to_darcsit_tag_link_environment(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / 'pages'
+            source_root = root / 'basilisk' / 'src'
+            output = root / 'public'
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
+            source_root.mkdir(parents=True)
+            (source_root / 'example.c').write_text('int main(void) { return 0; }\n', encoding='utf-8')
+
+            with mock.patch('wiki.site.render_darcsit', return_value='<p>Rendered</p>') as render:
+                StaticSiteBuilder(
+                    config=SiteConfig(
+                        base_dir=root,
+                        wiki_root=wiki_root,
+                        source_root=source_root,
+                        generate_source_tags=False,
+                        jobs=1,
+                    ),
+                    output_dir=output,
+                    base_url='/wiki',
+                ).build()
+
+            source_calls = [call for call in render.call_args_list if call.kwargs.get('source_path') == source_root / 'example.c']
+            self.assertEqual(len(source_calls), 1)
+            self.assertEqual(source_calls[0].kwargs.get('basilisk_url'), '/wiki')
+
     def test_static_build_writes_sitemap_and_robots_txt(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -194,7 +257,7 @@ class StaticSiteTests(unittest.TestCase):
 
             front = (output / 'index.html').read_text(encoding='utf-8')
             guide = (output / 'Guides' / 'Intro_Page' / 'index.html').read_text(encoding='utf-8')
-            self.assertIn('href="https://github.com/example/wiki/edit/main/Front Page.md"', front)
+            self.assertIn('href="https://github.com/example/wiki/edit/main/Front%20Page.md"', front)
             self.assertIn('href="https://github.com/example/wiki/edit/main/Guides/Intro_Page.md"', guide)
 
     def test_static_build_can_skip_default_source_tree(self):
@@ -325,7 +388,7 @@ class StaticSiteTests(unittest.TestCase):
             source_root.mkdir(parents=True)
             (source_root / 'generated.c').write_text('int generated(void) { return 1; }\n', encoding='utf-8')
 
-            def render_or_fail(source, slug='', source_path=None, table_of_contents=True, basilisk_root=None):
+            def render_or_fail(source, slug='', source_path=None, table_of_contents=True, basilisk_root=None, basilisk_url=None):
                 if slug == 'generated.c':
                     raise RuntimeError('Darcsit literate-c failed for generated.c.')
                 return '<p>Rendered page</p>'
@@ -346,7 +409,7 @@ class StaticSiteTests(unittest.TestCase):
             sandbox_root.mkdir(parents=True)
             (sandbox_root / 'generated.c').write_text('int generated(void) { return 1; }\n', encoding='utf-8')
 
-            def render_or_fail(source, slug='', source_path=None, table_of_contents=True, basilisk_root=None):
+            def render_or_fail(source, slug='', source_path=None, table_of_contents=True, basilisk_root=None, basilisk_url=None):
                 if slug == 'generated.c':
                     raise RuntimeError('Darcsit literate-c failed for generated.c.')
                 return '<p>Rendered page</p>'

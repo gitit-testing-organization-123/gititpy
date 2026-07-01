@@ -11,7 +11,7 @@ from gititpy.cli import main
 from gititpy.config import SiteConfig
 from wiki.artifacts import ArtifactRoot, discover_artifact_jobs
 from wiki.bibliography import render_bibliography_html
-from wiki.darcsit import DarcsitHelpers, render as render_markdown
+from wiki.darcsit import DarcsitHelpers, darcsit_environment, render as render_markdown
 from wiki.plots import expected_plot_artifacts, gnuplot_script_from_source, python_script_from_source
 from wiki.site import StaticSiteBuilder
 from wiki.storage import PageNameError, WikiRepository
@@ -61,6 +61,26 @@ class DarcsitRenderingTests(unittest.TestCase):
         self.assertIn('sourceCode', rendered)
         self.assertIn('id=6', rendered)
 
+    def test_cmakelists_renders_as_whole_file_code(self):
+        source = 'cmake_minimum_required(VERSION 3.20)\nproject(example)\n'
+        with mock.patch('wiki.darcsit.DarcsitHelpers.pagemagic') as pagemagic:
+            with mock.patch('wiki.darcsit.render_markdown', return_value='<pre>CMake</pre>') as markdown:
+                rendered = render_markdown(source, 'CMakeLists.txt')
+
+        self.assertEqual(rendered, '<pre>CMake</pre>')
+        pagemagic.assert_not_called()
+        self.assertTrue(markdown.call_args.args[0].startswith('~~~cmake\n'))
+
+    def test_extensionless_shell_script_renders_as_whole_file_code(self):
+        source = '#!/usr/bin/env bash\n/**\n# Not literate prose\n*/\necho ok\n'
+        with mock.patch('wiki.darcsit.DarcsitHelpers.pagemagic') as pagemagic:
+            with mock.patch('wiki.darcsit.render_markdown', return_value='<pre>Shell</pre>') as markdown:
+                rendered = render_markdown(source, 'dotest')
+
+        self.assertEqual(rendered, '<pre>Shell</pre>')
+        pagemagic.assert_not_called()
+        self.assertTrue(markdown.call_args.args[0].startswith('~~~bash\n'))
+
     def test_markdown_page_renders_table_of_contents(self):
         source = '# Page\n\n## Section One\n\nText.\n\n## Section Two\n\nMore text.\n'
         rendered = render_markdown(source)
@@ -73,6 +93,12 @@ class DarcsitRenderingTests(unittest.TestCase):
         self.assertTrue(helpers.available())
         self.assertEqual(helpers.root.name, 'bin')
         self.assertEqual(helpers.root.parent.name, 'darcsit_helpers')
+
+    def test_darcsit_environment_sets_basilisk_url_for_tag_links(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            env = darcsit_environment(Path(tmpdir) / 'src', 'https://example.org/wiki/')
+        self.assertEqual(env['BASILISK'], str(Path(tmpdir) / 'src'))
+        self.assertEqual(env['HTTP_BASILISK_URL'], 'https://example.org/wiki')
 
     def test_packaged_literate_helper_does_not_stamp_asset_urls(self):
         with tempfile.TemporaryDirectory() as tmpdir:

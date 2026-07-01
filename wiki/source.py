@@ -7,6 +7,7 @@ RENDERED_SOURCE_SUFFIXES = {
     ".awk",
     ".bib",
     ".c",
+    ".cmake",
     ".css",
     ".h",
     ".i",
@@ -25,6 +26,7 @@ RENDERED_SOURCE_SUFFIXES = {
 }
 
 
+CMAKE_SOURCE_NAMES = {"cmakelists.txt"}
 MAKEFILE_NAMES = {"gnumakefile", "makefile"}
 
 
@@ -79,6 +81,8 @@ class SourceTree:
     def should_render(self, path: Path) -> bool:
         if path.suffix.lower() == ".tags":
             return False
+        if path.name.lower() in CMAKE_SOURCE_NAMES:
+            return True
         if self.is_makefile(path):
             return True
         suffix = path.suffix.lower()

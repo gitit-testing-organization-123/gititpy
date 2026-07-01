@@ -2,6 +2,9 @@ from pathlib import Path, PurePosixPath
 from urllib.parse import quote, urlsplit
 
 
+FRONT_PAGE_SLUGS = {"Front Page", "FrontPage", "Front_Page"}
+
+
 class StaticUrls:
     def __init__(self, base_url: str = ""):
         self.base_url = self.normalize_base_url(base_url)
@@ -33,7 +36,7 @@ class StaticUrls:
         return self.url("/static/")
 
     def page_url(self, slug: str) -> str:
-        if slug == "Front Page":
+        if slug in FRONT_PAGE_SLUGS:
             return self.front_url()
         return self.tree_page_url(None, slug)
 
@@ -46,7 +49,7 @@ class StaticUrls:
         return self.tree_directory_url(None, slug)
 
     def page_output_path(self, output_dir: Path, slug: str) -> Path:
-        if slug == "Front Page":
+        if slug in FRONT_PAGE_SLUGS:
             return output_dir / "index.html"
         return self.tree_page_output_path(output_dir, None, slug)
 

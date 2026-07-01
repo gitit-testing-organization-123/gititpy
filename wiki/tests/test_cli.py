@@ -55,7 +55,7 @@ class CliTests(unittest.TestCase):
 
             self.assertEqual(status, 0)
             rendered = (output / 'index.html').read_text(encoding='utf-8')
-            self.assertIn('href="https://github.com/example/wiki/edit/main/Front Page.md"', rendered)
+            self.assertIn('href="https://github.com/example/wiki/edit/main/Front%20Page.md"', rendered)
 
     def test_cli_arguments_override_gititpy_toml(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -90,8 +90,8 @@ class CliTests(unittest.TestCase):
 
             self.assertEqual(status, 0)
             rendered = (output / 'index.html').read_text(encoding='utf-8')
-            self.assertIn('href="https://github.com/example/wiki/edit/dev/Front Page.md"', rendered)
-            self.assertNotIn('href="https://github.com/example/wiki/edit/main/Front Page.md"', rendered)
+            self.assertIn('href="https://github.com/example/wiki/edit/dev/Front%20Page.md"', rendered)
+            self.assertNotIn('href="https://github.com/example/wiki/edit/main/Front%20Page.md"', rendered)
 
     def test_cli_verbose_build_prints_progress(self):
         with tempfile.TemporaryDirectory() as tmpdir:

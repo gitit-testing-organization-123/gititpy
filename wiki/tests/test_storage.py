@@ -25,6 +25,16 @@ class StorageTests(unittest.TestCase):
             source = repo.read_page('Front Page')
         self.assertIn('Welcome to GititPy', source)
 
+    def test_front_page_is_written_with_canonical_spaced_name(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir) / 'pages'
+            repo = WikiRepository(root)
+            repo.write_page('Front Page', '# Front\n')
+            self.assertTrue((root / 'Front Page.md').is_file())
+            self.assertFalse((root / 'Front_Page.md').exists())
+            self.assertEqual(repo.page_slug_for_path(Path('FrontPage.md')), 'Front Page')
+            self.assertEqual(repo.page_slug_for_path(Path('Front_Page.md')), 'Front Page')
+
     def test_page_can_be_written_without_git_repo(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir) / 'pages'

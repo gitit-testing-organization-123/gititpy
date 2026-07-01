@@ -23,7 +23,7 @@ from .tags import generate_qcc_tags, is_qcc_tags_file
 ATTRIBUTE_VALUE_RE = r""""([^"]*)"|'([^']*)'|([^\s"'=<>`]+)"""
 HREF_RE = re.compile(r"\bhref=(?:" + ATTRIBUTE_VALUE_RE + r")")
 URL_ATTR_RE = re.compile(r"\b(href|src|poster)=(?:" + ATTRIBUTE_VALUE_RE + r")")
-TEMP_PLOT_RE = re.compile(r"^_plot[0-9]+\.[A-Za-z0-9]+$")
+TEMP_ARTIFACT_RE = re.compile(r"^[A-Za-z0-9_.+-]+\.[A-Za-z0-9]+$")
 
 
 @dataclass(frozen=True)
@@ -630,10 +630,10 @@ class StaticSiteBuilder:
         return False
 
     def temp_plot_artifact_path(self, path: str, current_artifact_rel_dir: str) -> str | None:
-        if not path.startswith("/"):
+        if not path.startswith("/tmp/"):
             return None
         name = PurePosixPath(path).name
-        if not TEMP_PLOT_RE.match(name):
+        if not TEMP_ARTIFACT_RE.match(name):
             return None
         return (PurePosixPath(current_artifact_rel_dir) / name).as_posix()
 

@@ -397,7 +397,7 @@ class StaticSiteTests(unittest.TestCase):
                 result = builder.build()
             rendered = (output / 'src' / 'generated.c' / 'index.html').read_text(encoding='utf-8')
             self.assertIn('generated', rendered)
-            self.assertIn('plain code', result.warnings[0])
+            self.assertTrue(any('plain code' in warning for warning in result.warnings), result.warnings)
 
     def test_sandbox_render_failure_falls_back_to_plain_code(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -417,7 +417,7 @@ class StaticSiteTests(unittest.TestCase):
                 result = StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, sandbox_root=sandbox_root, build_source=False, jobs=1), output_dir=output).build()
             rendered = (output / 'sandbox' / 'generated.c' / 'index.html').read_text(encoding='utf-8')
             self.assertIn('generated', rendered)
-            self.assertIn('plain code', result.warnings[0])
+            self.assertTrue(any('plain code' in warning for warning in result.warnings), result.warnings)
 
     def test_static_builder_honors_config_base_url_and_output_dir(self):
         with tempfile.TemporaryDirectory() as tmpdir:

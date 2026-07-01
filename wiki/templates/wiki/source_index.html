@@ -1,7 +1,7 @@
 {% extends "wiki/base.html" %}
 
 {% block content %}
-  <h1 class="pageTitle">{{ page_title }}</h1>
+  {% include "wiki/breadcrumbs.html" %}
   <div class="index">
     <ul>
       {% if source_path %}

@@ -366,6 +366,7 @@ class StaticSiteBuilder:
                 "page_title": f"/{browser.prefix}/{rel}",
                 "canonical_url": self.urls.tree_page_url(browser.url_prefix, rel),
                 "source_path": rel,
+                "breadcrumbs": self.source_breadcrumbs(browser, rel, include_leaf=True),
                 "content_html": self.rewrite_content_links(
                     content_html,
                     current_source_path=rel,
@@ -393,6 +394,7 @@ class StaticSiteBuilder:
             "page_title": f"/{browser.prefix}/{rel}" if rel else f"/{browser.prefix}",
             "canonical_url": self.urls.tree_directory_url(browser.url_prefix, rel),
             "source_path": rel,
+            "breadcrumbs": self.source_breadcrumbs(browser, rel, include_leaf=bool(rel)),
             "tree_root_url": self.urls.tree_directory_url(browser.url_prefix, ""),
             "parent_path": parent,
             "parent_url": self.urls.tree_directory_url(browser.url_prefix, parent)
@@ -405,6 +407,33 @@ class StaticSiteBuilder:
             self.render_template("wiki/source_index.html", context),
         )
         self.record_generated_item(f"{browser.name}-directory:{rel}", [output_path], f"{browser.name}-directory")
+
+    def source_breadcrumbs(self, browser: StaticTree, rel: str, include_leaf: bool):
+        breadcrumbs = [
+            # SimpleNamespace(label="Home", href=self.urls.front_url(), active=False),
+            SimpleNamespace(
+                label=browser.prefix,
+                href=None if not rel and not include_leaf else self.urls.tree_directory_url(browser.url_prefix, ""),
+                active=not rel and not include_leaf,
+            ),
+        ]
+        parts = PurePosixPath(rel).parts if rel else ()
+        if not parts:
+            return breadcrumbs
+        directory_parts = parts[:-1] if include_leaf else parts
+        for index, part in enumerate(directory_parts):
+            path = PurePosixPath(*parts[: index + 1]).as_posix()
+            active = not include_leaf and index == len(directory_parts) - 1
+            breadcrumbs.append(
+                SimpleNamespace(
+                    label=part,
+                    href=None if active else self.urls.tree_directory_url(browser.url_prefix, path),
+                    active=active,
+                )
+            )
+        if include_leaf:
+            breadcrumbs.append(SimpleNamespace(label=parts[-1], href=None, active=True))
+        return breadcrumbs
 
     def copy_static_assets(self):
         static_root = Path(__file__).resolve().parent / "static"

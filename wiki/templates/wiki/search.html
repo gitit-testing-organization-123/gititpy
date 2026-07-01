@@ -2,11 +2,11 @@
 
 {% block content %}
   <h1 class="pageTitle">Search</h1>
-  <form id="search-page-form" action="{{ search_url }}" method="get">
-    <p class="search-box">
-      <input id="search-page-input" type="search" name="q" value="{{ query }}" autocomplete="off" autofocus>
-      <input type="submit" value="Search">
-    </p>
+  <form id="search-page-form" class="mb-3" action="{{ search_url }}" method="get">
+    <div class="search-box input-group">
+      <input id="search-page-input" class="form-control" type="search" name="q" value="{{ query }}" autocomplete="off" autofocus>
+      <input class="btn btn-primary" type="submit" value="Search">
+    </div>
   </form>
   <p id="search-status" class="search-status"></p>
   <div id="search-results"></div>

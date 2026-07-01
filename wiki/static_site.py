@@ -733,6 +733,7 @@ class StaticSiteBuilder:
             "all_pages_url": self.urls.index_url(),
             "recent_url": self.urls.recent_url(),
             "source_root_url": self.urls.source_root_url(),
+            "sandbox_root_url": self.urls.sandbox_root_url() if self.sandbox_repo is not None else None,
             "search_url": self.urls.search_url(),
             "go_url": self.urls.search_url(),
             "help_url": self.urls.page_url("Help"),

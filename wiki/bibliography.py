@@ -5,9 +5,12 @@ from urllib.error import URLError
 from urllib.parse import quote
 from urllib.request import urlopen
 
+from pylatexenc.latex2text import LatexNodes2Text
+
 
 BIB_START_RE = re.compile(r"^\s*~~~bib\s*$")
 BIB_END_RE = re.compile(r"^\s*~~~\s*$")
+LATEX_TO_TEXT = LatexNodes2Text()
 
 
 @dataclass
@@ -273,14 +276,4 @@ def format_person(name: str) -> str:
 
 def clean_tex(value: str) -> str:
     value = re.sub(r"\s+", " ", value).strip()
-    replacements = {
-        r"\&": "&",
-        r"\_": "_",
-        r"\%": "%",
-        r"\#": "#",
-        r"\'{e}": "e",
-        r"\"{o}": "o",
-    }
-    for old, new in replacements.items():
-        value = value.replace(old, new)
-    return value.replace("{", "").replace("}", "")
+    return LATEX_TO_TEXT.latex_to_text(value)

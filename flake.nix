@@ -57,6 +57,7 @@
           dependencies = with pythonPackages; [
             jinja2
             pygments
+            pylatexenc
           ] ++ plotPythonPackages;
 
           nativeBuildInputs = [
@@ -128,6 +129,7 @@
               matplotlib
               numpy
               pygments
+              pylatexenc
               pytest
               setuptools
               wheel

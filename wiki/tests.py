@@ -330,9 +330,11 @@ int main(void) { return 0; }
             source_root = root / "basilisk" / "src"
             artifact_root = root / "basilisk" / "build" / "release" / "src"
             artifact_dir = artifact_root / "test" / "vortex"
+            generated_artifact_dir = artifact_root / "test" / "dirichlet"
             stage_dir = root / "stage"
             (source_root / "test").mkdir(parents=True)
             artifact_dir.mkdir(parents=True)
+            generated_artifact_dir.mkdir(parents=True)
             (source_root / "test" / "vortex.c").write_text(
                 "/**\n![Plot](vortex/plot.png)\n*/\nint main(void) { return 0; }\n",
                 encoding="utf-8",
@@ -342,6 +344,11 @@ int main(void) { return 0; }
             (artifact_dir / "dump").write_bytes(b"dump")
             (artifact_dir / "vortex").write_bytes(b"binary")
             (artifact_dir / "linked.png").symlink_to(artifact_dir / "plot.png")
+            (generated_artifact_dir / "dirichlet").write_bytes(b"binary")
+            (generated_artifact_dir / "a.png").write_bytes(b"a-png")
+            (generated_artifact_dir / "dump").write_bytes(b"dump")
+            (artifact_root / "CMakeFiles").mkdir()
+            (artifact_root / "CMakeFiles" / "noise.txt").write_text("noise\n", encoding="utf-8")
 
             status = artifacts_main(
                 [
@@ -358,9 +365,13 @@ int main(void) { return 0; }
             self.assertEqual(status, 0)
             self.assertEqual((stage_dir / "src" / "test" / "vortex" / "plot.png").read_bytes(), b"png")
             self.assertEqual((stage_dir / "src" / "test" / "vortex" / "log").read_text(encoding="utf-8"), "log\n")
+            self.assertEqual((stage_dir / "src" / "test" / "vortex" / "linked.png").read_bytes(), b"png")
+            self.assertEqual((stage_dir / "src" / "test" / "dirichlet" / "a.png").read_bytes(), b"a-png")
             self.assertFalse((stage_dir / "src" / "test" / "vortex" / "dump").exists())
             self.assertFalse((stage_dir / "src" / "test" / "vortex" / "vortex").exists())
-            self.assertFalse((stage_dir / "src" / "test" / "vortex" / "linked.png").exists())
+            self.assertFalse((stage_dir / "src" / "test" / "dirichlet" / "dump").exists())
+            self.assertFalse((stage_dir / "src" / "test" / "dirichlet" / "dirichlet").exists())
+            self.assertFalse((stage_dir / "src" / "CMakeFiles" / "noise.txt").exists())
 
     def test_artifacts_cli_generates_plot_scripts(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -808,6 +819,41 @@ int main(void) {
             self.assertIn('src="https://artifacts.example.org/site/src/test/vortex/plot%201.png?download=1#frame"', rendered)
             self.assertIn('href="other/movie.mp4"', rendered)
 
+    def test_static_source_render_rewrites_cross_sibling_artifact_links(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / "pages"
+            source_root = root / "basilisk" / "src"
+            artifact_root = root / "basilisk" / "build" / "release" / "src"
+            output = root / "public"
+            WikiRepository(wiki_root).write_page("FrontPage", "# Front\n", "Create front")
+            (source_root / "test").mkdir(parents=True)
+            (source_root / "test" / "neumann.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+            (artifact_root / "test" / "dirichlet").mkdir(parents=True)
+            (artifact_root / "test" / "dirichlet" / "a.png").write_bytes(b"png")
+            rendered_content = (
+                '<img src="dirichlet/a.png?1782833204">'
+                '<a href="other/movie.mp4">other</a>'
+            )
+
+            with mock.patch("wiki.static_site.render_darcsit", return_value=rendered_content):
+                StaticSiteBuilder(
+                    config=SiteConfig(
+                        base_dir=root,
+                        wiki_root=wiki_root,
+                        source_root=source_root,
+                        artifact_base_url="/artifacts",
+                        artifact_root=artifact_root,
+                        generate_source_tags=False,
+                        jobs=1,
+                    ),
+                    output_dir=output,
+                ).build()
+
+            rendered = (output / "src" / "test" / "neumann.c" / "index.html").read_text(encoding="utf-8")
+            self.assertIn('src="/artifacts/src/test/dirichlet/a.png?1782833204"', rendered)
+            self.assertIn('href="other/movie.mp4"', rendered)
+
     def test_static_source_render_rewrites_absolute_source_artifact_links(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -864,6 +910,34 @@ int main(void) {
             rendered = (output / "src" / "test" / "stokes.c" / "index.html").read_text(encoding="utf-8")
             self.assertIn('src="/artifacts/src/test/stokes/_plot0.svg?1782798642"', rendered)
             self.assertNotIn("/tmp/tmpabc123", rendered)
+
+    def test_static_source_render_rewrites_named_temp_plot_links(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / "pages"
+            source_root = root / "basilisk" / "src"
+            output = root / "public"
+            WikiRepository(wiki_root).write_page("FrontPage", "# Front\n", "Create front")
+            (source_root / "test").mkdir(parents=True)
+            (source_root / "test" / "static_bubble.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+            rendered_content = '<img src="/tmp/tmp3y5ywol9/p001cbt.svg?1782840608">'
+
+            with mock.patch("wiki.static_site.render_darcsit", return_value=rendered_content):
+                StaticSiteBuilder(
+                    config=SiteConfig(
+                        base_dir=root,
+                        wiki_root=wiki_root,
+                        source_root=source_root,
+                        artifact_base_url="/artifacts",
+                        generate_source_tags=False,
+                        jobs=1,
+                    ),
+                    output_dir=output,
+                ).build()
+
+            rendered = (output / "src" / "test" / "static_bubble.c" / "index.html").read_text(encoding="utf-8")
+            self.assertIn('src="/artifacts/src/test/static_bubble/p001cbt.svg?1782840608"', rendered)
+            self.assertNotIn("/tmp/tmp3y5ywol9", rendered)
 
     def test_static_build_renders_sandbox_from_separate_root(self):
         with tempfile.TemporaryDirectory() as tmpdir:

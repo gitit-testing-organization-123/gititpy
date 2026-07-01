@@ -225,6 +225,25 @@ figure video {
   max-width: 100%;
 }
 
+.wiki-content .bibtex {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.wiki-content .bibtex table {
+  margin-left: 0;
+  margin-right: 0;
+  min-width: max-content;
+  width: max-content;
+}
+
+.wiki-content .bibtexitem {
+  max-width: min(70ch, calc(100vw - 8rem));
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .wiki-content th,
 .wiki-content td {
   border: 1px solid var(--gititpy-border-subtle);

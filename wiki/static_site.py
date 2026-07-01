@@ -100,6 +100,7 @@ class StaticSiteBuilder:
         self.log("Writing sitemap and robots.txt")
         self.write_sitemap()
         self.write_robots_txt()
+        self.remove_deprecated_outputs()
         self.remove_stale_manifest_outputs()
         self.write_manifest()
 
@@ -113,7 +114,6 @@ class StaticSiteBuilder:
 
     def build_wiki(self):
         self.render_all_pages_index()
-        self.render_recent_page()
         self.render_search_page()
 
         for directory in self.visible_directories(self.repo.root):
@@ -150,7 +150,6 @@ class StaticSiteBuilder:
         source_path = self.repo.page_path(slug)
         output_paths = [
             self.urls.page_output_path(self.output_dir, slug),
-            self.urls.history_output_path(self.output_dir, slug),
         ]
         if slug == "FrontPage":
             output_paths.append(self.output_dir / "FrontPage.html")
@@ -168,7 +167,6 @@ class StaticSiteBuilder:
         )
         context = self.page_context(slug) | {
             "content_html": self.rewrite_content_links(content_html),
-            "revision": None,
             "source": source,
         }
         html = self.render_template("wiki/page.html", context)
@@ -178,7 +176,6 @@ class StaticSiteBuilder:
             self.write_html(self.output_dir / "FrontPage.html", html)
 
         self.copy_raw_page(slug, source_path)
-        self.render_history_page(slug)
         self.record_manifest_item(manifest_key, source_path, output_paths, "page")
 
     def render_sandbox_page(self, slug: str):
@@ -188,7 +185,6 @@ class StaticSiteBuilder:
         source_path = self.sandbox_repo.page_path(slug)
         output_paths = [
             self.urls.sandbox_page_output_path(self.output_dir, slug),
-            self.urls.sandbox_history_output_path(self.output_dir, slug),
         ]
         manifest_key = f"sandbox:{slug}"
         if self.is_manifest_current(manifest_key, source_path, output_paths, "page"):
@@ -207,13 +203,11 @@ class StaticSiteBuilder:
                 content_html,
                 current_artifact_rel_dir=artifact_key_dir_for_slug(slug, prefix="sandbox"),
             ),
-            "revision": None,
             "source": source,
         }
         html = self.render_template("wiki/page.html", context)
         self.write_html(self.urls.sandbox_page_output_path(self.output_dir, slug), html)
         self.copy_file(source_path, self.urls.sandbox_raw_output_path(self.output_dir, self.sandbox_repo, slug))
-        self.render_sandbox_history_page(slug)
         self.record_manifest_item(manifest_key, source_path, output_paths, "page")
 
     def render_wiki_directory(self, directory: Path):
@@ -268,13 +262,6 @@ class StaticSiteBuilder:
         context = self.base_context() | {"pages": pages, "page_title": "All pages"}
         self.write_html(self.output_dir / "_index.html", self.render_template("wiki/index.html", context))
 
-    def render_recent_page(self):
-        context = self.base_context() | {
-            "page_title": "Recent activity",
-            "revisions": self.repo.recent(),
-        }
-        self.write_html(self.output_dir / "_recent.html", self.render_template("wiki/recent.html", context))
-
     def render_search_page(self):
         context = self.base_context() | {
             "page_title": "Search",
@@ -283,25 +270,6 @@ class StaticSiteBuilder:
             "search_index_url": self.urls.search_index_url(),
         }
         self.write_html(self.output_dir / "_search.html", self.render_template("wiki/search.html", context))
-
-    def render_history_page(self, slug: str):
-        context = self.page_context(slug) | {"canonical_url": None, "revisions": self.repo.history(slug)}
-        self.write_html(
-            self.urls.history_output_path(self.output_dir, slug),
-            self.render_template("wiki/history.html", context),
-        )
-
-    def render_sandbox_history_page(self, slug: str):
-        if self.sandbox_repo is None:
-            return
-        context = self.sandbox_page_context(slug) | {
-            "canonical_url": None,
-            "revisions": self.sandbox_repo.history(slug),
-        }
-        self.write_html(
-            self.urls.sandbox_history_output_path(self.output_dir, slug),
-            self.render_template("wiki/history.html", context),
-        )
 
     def build_source_tree(self):
         if self.source_tree is None or not self.source_tree.root.exists():
@@ -463,7 +431,6 @@ class StaticSiteBuilder:
             "User-agent: *",
             f"Allow: {self.urls.robots_path('/')}",
             f"Disallow: {self.urls.robots_path('/_raw/')}",
-            f"Disallow: {self.urls.robots_path('/_history/')}",
             f"Disallow: {self.urls.robots_path('/_search.html')}",
             "",
             f"Sitemap: {self.urls.sitemap_url()}",
@@ -731,7 +698,6 @@ class StaticSiteBuilder:
             "canonical_url": None,
             "front_url": self.urls.front_url(),
             "all_pages_url": self.urls.index_url(),
-            "recent_url": self.urls.recent_url(),
             "source_root_url": self.urls.source_root_url(),
             "sandbox_root_url": self.urls.sandbox_root_url() if self.sandbox_repo is not None else None,
             "search_url": self.urls.search_url(),
@@ -750,7 +716,6 @@ class StaticSiteBuilder:
             "page_url": self.urls.page_url(slug),
             "canonical_url": self.urls.page_url(slug),
             "edit_page_url": "",
-            "history_page_url": self.urls.history_url(slug),
             "raw_page_url": self.urls.raw_url(self.repo, slug),
             "delete_page_url": "",
         }
@@ -765,7 +730,6 @@ class StaticSiteBuilder:
             "page_url": self.urls.sandbox_page_url(slug),
             "canonical_url": self.urls.sandbox_page_url(slug),
             "edit_page_url": "",
-            "history_page_url": self.urls.sandbox_history_url(slug),
             "raw_page_url": self.urls.sandbox_raw_url(self.sandbox_repo, slug),
             "delete_page_url": "",
         }
@@ -978,9 +942,10 @@ class StaticSiteBuilder:
         old_items = self.old_manifest.get("items", {})
         new_items = self.new_manifest.get("items", {})
         for key, item in old_items.items():
-            if key in new_items:
-                continue
+            new_outputs = set(new_items.get(key, {}).get("outputs", []))
             for rel_output in item.get("outputs", []):
+                if rel_output in new_outputs:
+                    continue
                 output = self.output_dir / rel_output
                 try:
                     if output.is_file() or output.is_symlink():
@@ -988,6 +953,18 @@ class StaticSiteBuilder:
                         self.log(f"Remove stale {output}")
                 except OSError as exc:
                     self.warn(f"Could not remove stale output {output}: {exc}")
+
+    def remove_deprecated_outputs(self):
+        for output in (self.output_dir / "_recent.html", self.output_dir / "_history"):
+            try:
+                if output.is_dir():
+                    shutil.rmtree(output)
+                    self.log(f"Remove deprecated {output}")
+                elif output.is_file() or output.is_symlink():
+                    output.unlink()
+                    self.log(f"Remove deprecated {output}")
+            except OSError as exc:
+                self.warn(f"Could not remove deprecated output {output}: {exc}")
 
     def compute_build_signature(self) -> str:
         template_roots = [
@@ -1055,9 +1032,6 @@ class StaticUrls:
     def index_url(self) -> str:
         return self.url("/_index.html")
 
-    def recent_url(self) -> str:
-        return self.url("/_recent.html")
-
     def search_url(self) -> str:
         return self.url("/_search.html")
 
@@ -1097,14 +1071,8 @@ class StaticUrls:
             return self.index_url()
         return self.url(f"/{slug.strip('/')}/")
 
-    def history_url(self, slug: str) -> str:
-        return self.url(f"/_history/{slug}.html")
-
     def raw_url(self, repo: WikiRepository, slug: str) -> str:
         return self.url(f"/_raw/{repo.page_filename(slug)}")
-
-    def sandbox_history_url(self, slug: str) -> str:
-        return self.url(f"/_history/sandbox/{slug}.html")
 
     def sandbox_raw_url(self, repo: WikiRepository, slug: str) -> str:
         return self.url(f"/_raw/sandbox/{repo.page_filename(slug)}")
@@ -1141,14 +1109,8 @@ class StaticUrls:
             return output_dir / "sandbox" / "index.html"
         return output_dir / "sandbox" / self.local_path(slug) / "index.html"
 
-    def history_output_path(self, output_dir: Path, slug: str) -> Path:
-        return output_dir / "_history" / self.local_path(f"{slug}.html")
-
     def raw_output_path(self, output_dir: Path, repo: WikiRepository, slug: str) -> Path:
         return output_dir / "_raw" / self.local_path(repo.page_filename(slug))
-
-    def sandbox_history_output_path(self, output_dir: Path, slug: str) -> Path:
-        return output_dir / "_history" / "sandbox" / self.local_path(f"{slug}.html")
 
     def sandbox_raw_output_path(self, output_dir: Path, repo: WikiRepository, slug: str) -> Path:
         return output_dir / "_raw" / "sandbox" / self.local_path(repo.page_filename(slug))

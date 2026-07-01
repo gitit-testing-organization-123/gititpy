@@ -165,6 +165,22 @@ More text.
         self.assertEqual(helpers.root.name, "bin")
         self.assertEqual(helpers.root.parent.name, "darcsit_helpers")
 
+    def test_packaged_literate_helper_does_not_stamp_asset_urls(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            source_path = Path(tmpdir) / "test.c"
+            source_path.write_text(
+                '/**\n~~~gnuplot Plot\nplot "out"\n~~~\n\n![Figure](figure.png)\n*/\nint main(void) { return 0; }\n',
+                encoding="utf-8",
+            )
+
+            rendered = DarcsitHelpers().literate(str(source_path), page_magic=True)
+
+        self.assertIsNotNone(rendered)
+        self.assertIn("_plot0.svg)", rendered)
+        self.assertIn("![Figure](figure.png)", rendered)
+        self.assertNotIn("_plot0.svg?", rendered)
+        self.assertNotIn("figure.png?", rendered)
+
     def test_python_bibliography_renderer_formats_bibtex(self):
         rendered = render_bibliography_html(
             """@article{doe2024,
@@ -758,9 +774,10 @@ int main(void) {
             robots = (output / "robots.txt").read_text(encoding="utf-8")
             self.assertIn("Allow: /docs/", robots)
             self.assertIn("Disallow: /docs/_raw/", robots)
-            self.assertIn("Disallow: /docs/_history/", robots)
             self.assertIn("Disallow: /docs/_search.html", robots)
             self.assertIn("Sitemap: https://example.org/docs/sitemap.xml", robots)
+            self.assertFalse((output / "_recent.html").exists())
+            self.assertFalse((output / "_history").exists())
 
     def test_static_build_writes_canonical_links_for_indexable_pages(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -814,10 +831,25 @@ int main(void) {
                 'rel="canonical"',
                 (output / "_search.html").read_text(encoding="utf-8"),
             )
-            self.assertNotIn(
-                'rel="canonical"',
-                (output / "_history" / "Guide.html").read_text(encoding="utf-8"),
-            )
+            self.assertFalse((output / "_history" / "Guide.html").exists())
+
+    def test_static_build_removes_deprecated_history_activity_outputs(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / "pages"
+            output = root / "public"
+            WikiRepository(wiki_root).write_page("FrontPage", "# Front\n", "Create front")
+            (output / "_history").mkdir(parents=True)
+            (output / "_history" / "FrontPage.html").write_text("old history\n", encoding="utf-8")
+            (output / "_recent.html").write_text("old activity\n", encoding="utf-8")
+
+            StaticSiteBuilder(
+                config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False),
+                output_dir=output,
+            ).build()
+
+            self.assertFalse((output / "_history").exists())
+            self.assertFalse((output / "_recent.html").exists())
 
     def test_static_build_can_skip_default_source_tree(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1089,6 +1121,24 @@ int main(void) {
             search_index = (output / "search-index.json").read_text(encoding="utf-8")
             self.assertIn("sandbox/README", search_index)
             self.assertIn("/sandbox/README.html", search_index)
+
+    def test_static_sidebar_links_to_sandbox_when_configured(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / "pages"
+            sandbox_root = root / "sandbox"
+            output = root / "public"
+            WikiRepository(wiki_root).write_page("FrontPage", "# Front\n", "Create front")
+            WikiRepository(sandbox_root, seed_defaults=False).write_page("README", "# Sandbox\n", "Create sandbox")
+
+            StaticSiteBuilder(
+                config=SiteConfig(base_dir=root, wiki_root=wiki_root, sandbox_root=sandbox_root, build_source=False),
+                output_dir=output,
+            ).build()
+
+            rendered = (output / "index.html").read_text(encoding="utf-8")
+            self.assertIn('href="/sandbox/"', rendered)
+            self.assertIn(">Sandbox</a>", rendered)
 
     def test_incremental_build_skips_unchanged_page_renders(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -191,8 +191,6 @@ python -m gititpy.artifacts_cli \
   renderer.
 - Build static page output, raw source copies, directory indexes, optional
   `/src/` source pages, and a client-side search index.
-- Optionally show page history and recent activity if `wiki-pages/` itself is a
-  Git repository; no Git repository is created or modified by default.
 - Use Gitit static assets for the basic layout.
 
 There is intentionally no login system in the static-generator workflow.

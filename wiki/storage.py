@@ -44,15 +44,6 @@ class PageNameError(ValueError):
 
 
 @dataclass(frozen=True)
-class Revision:
-    commit: str
-    short_commit: str
-    author: str
-    date: str
-    subject: str
-
-
-@dataclass(frozen=True)
 class WikiEntry:
     name: str
     slug: str
@@ -175,15 +166,8 @@ class WikiRepository:
         self.ensure_ready()
         return self.directory_path(slug).is_dir()
 
-    def read_page(self, slug: str, revision: str | None = None) -> str:
+    def read_page(self, slug: str) -> str:
         self.ensure_ready()
-        if revision:
-            if not self.has_git_history():
-                raise FileNotFoundError(slug)
-            result = self._git("show", f"{revision}:{self.relative_page_path(slug)}", check=False)
-            if result.returncode != 0:
-                raise FileNotFoundError(slug)
-            return result.stdout
         path = self.page_path(slug)
         if not path.is_file():
             raise FileNotFoundError(slug)
@@ -258,34 +242,6 @@ class WikiRepository:
             results.append({"slug": slug, "snippet": snippet})
         return results
 
-    def history(self, slug: str) -> list[Revision]:
-        self.ensure_ready()
-        if not self.has_git_history():
-            return []
-        result = self._git(
-            "log",
-            "--follow",
-            "--date=short",
-            "--format=%H%x1f%h%x1f%an%x1f%ad%x1f%s",
-            "--",
-            self.relative_page_path(slug),
-            check=False,
-        )
-        return self._parse_revisions(result.stdout)
-
-    def recent(self, limit: int = 30) -> list[Revision]:
-        self.ensure_ready()
-        if not self.has_git_history():
-            return []
-        result = self._git(
-            "log",
-            f"-n{limit}",
-            "--date=short",
-            "--format=%H%x1f%h%x1f%an%x1f%ad%x1f%s",
-            check=False,
-        )
-        return self._parse_revisions(result.stdout)
-
     def commit_all(self, message: str):
         if not self.has_git_history():
             return
@@ -312,17 +268,6 @@ class WikiRepository:
             capture_output=True,
             text=True,
         )
-
-    def _parse_revisions(self, output: str) -> list[Revision]:
-        revisions = []
-        for line in output.splitlines():
-            if not line.strip():
-                continue
-            parts = line.split("\x1f", 4)
-            if len(parts) != 5:
-                continue
-            revisions.append(Revision(*parts))
-        return revisions
 
     def _snippet(self, text: str, needle: str) -> str:
         for line in text.splitlines():

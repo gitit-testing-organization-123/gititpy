@@ -7,7 +7,6 @@
     <ul>
       <li><a href="{{ front_url }}">Front page</a></li>
       <li><a href="{{ all_pages_url }}">All pages</a></li>
-      <li><a href="{{ recent_url }}">Recent activity</a></li>
       <li><a href="{{ help_url }}">Help</a></li>
     </ul>
     <form id="searchform" action="{{ search_url }}" method="get">
@@ -18,25 +17,9 @@
   <fieldset>
     <legend>Development</legend>
     <ul>
-      <li><a href="#">Recent activity</a></li>
-      <li><a href="{{ source_root_url }}">Source code</a></li>
-      {% if sandbox_root_url %}
-        <li><a href="{{ sandbox_root_url }}">Sandbox</a></li>
-      {% endif %}
+      {% for tree in source_tree_links %}
+        <li><a href="{{ tree.href }}">{{ tree.label }}</a></li>
+      {% endfor %}
     </ul>
   </fieldset>
 </div>
-{% if page_slug %}
-  <div class="pageTools">
-    <fieldset>
-      <legend>This page</legend>
-      <ul>
-        <li><a href="{{ raw_page_url }}">Raw page source</a></li>
-        <li><a href="{{ history_page_url }}">Page history</a></li>
-        {% if not static_build %}
-          <li><a href="{{ delete_page_url }}">Delete this page</a></li>
-        {% endif %}
-      </ul>
-    </fieldset>
-  </div>
-{% endif %}

@@ -2,15 +2,4 @@
   <li class="{% if active_tab == 'view' %}selected{% endif %}">
     <a href="{{ page_url }}">view</a>
   </li>
-  {% if not static_build %}
-    <li class="{% if active_tab == 'edit' %}selected{% endif %}">
-      <a href="{{ edit_page_url }}">edit</a>
-    </li>
-  {% endif %}
-  <li class="{% if active_tab == 'history' %}selected{% endif %}">
-    <a href="{{ history_page_url }}">history</a>
-  </li>
-  <li>
-    <a href="{{ recent_url }}">activity</a>
-  </li>
 </ul>

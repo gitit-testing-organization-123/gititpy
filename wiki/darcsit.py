@@ -23,7 +23,9 @@ LANGUAGES_BY_SUFFIX = {
     ".css": "css",
     ".h": "c",
     ".html": "html",
+    ".i": "c",
     ".js": "javascript",
+    ".json": "json",
     ".m": "matlab",
     ".plot": "bash",
     ".py": "python",
@@ -165,13 +167,6 @@ def render_literate_file(
     if rendered is None:
         raise RuntimeError(f"Darcsit codeblock failed for {path}.")
     return rendered
-
-
-def source_to_markdown(source: str, slug: str = "") -> str:
-    language = language_for_slug(slug)
-    if not language:
-        return preprocess_wiki_links(source)
-    return fenced_code(source, language)
 
 
 def render_markdown(source: str, table_of_contents: bool = True) -> str:

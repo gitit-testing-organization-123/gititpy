@@ -5,7 +5,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from .config import SiteConfig, load_config, replace_config
-from wiki.static_site import StaticSiteBuilder
+from wiki.site import StaticSiteBuilder
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -14,7 +14,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", default=None, help="Config file. Defaults to BASE_DIR/gititpy.toml when present.")
     parser.add_argument("--wiki-title", default=None, help="Site title.")
     parser.add_argument("--wiki-root", default=None, help="Wiki page tree. Defaults to BASE_DIR/wiki-pages.")
-    parser.add_argument("--sandbox-root", default=None, help="Sandbox page tree. Defaults to BASE_DIR/sandbox when present.")
+    parser.add_argument("--sandbox-root", default=None, help="Sandbox source tree. Defaults to BASE_DIR/sandbox when present.")
     parser.add_argument(
         "--toc",
         action=argparse.BooleanOptionalAction,

@@ -43,6 +43,11 @@ python -m gititpy build --output public --source-root basilisk/src
 python -m gititpy build --output public --no-source
 ```
 
+If `sandbox` exists under the project root, it is rendered as a second source
+browser under `/sandbox/` using the same file and directory URL shape as
+`/src/`; for example, `sandbox/cases/drop.c` renders at
+`/sandbox/cases/drop.c/`.
+
 Source rendering is parallelized with a conservative default of up to four jobs.
 Adjust it with:
 
@@ -137,8 +142,8 @@ A consuming site can keep content and customization in this shape:
 
 ```text
 wiki-pages/       Markdown, source pages, images, movies, and other page assets
-sandbox/          Optional sandbox page tree rendered under /sandbox/
-basilisk/src/     Optional tree rendered under /src/
+sandbox/          Optional source-browser tree rendered under /sandbox/
+basilisk/src/     Optional source-browser tree rendered under /src/
 artifacts/        Optional local staging tree for separately-uploaded artifacts
 templates/        Optional Jinja template overrides, e.g. templates/wiki/base.html
 static/           Optional static overrides copied to /static/
@@ -150,11 +155,12 @@ repo, installs Pandoc and the local package, runs `gititpy build`, and deploys
 `public/`. Expensive plot or movie generation should happen before this build
 and commit or otherwise provide the resulting artifacts to the site tree.
 
-The build copies static assets, renders wiki pages, renders directory indexes,
-copies non-rendered assets such as images or movies, and writes
-`search-index.json` for client-side search. It does not run long simulations or
-generate plot/movie artifacts; those should be produced separately and stored
-alongside the pages or served from external artifact storage.
+The build copies static assets, renders wiki pages, renders source-browser
+trees and directory indexes, copies non-rendered assets such as images or
+movies, and writes `search-index.json` for client-side search across rendered
+wiki, source, and sandbox pages. It does not run long simulations or generate
+plot/movie artifacts; those should be produced separately and stored alongside
+the pages or served from external artifact storage.
 
 Inline `~~~gnuplot` and `~~~pythonplot` blocks can be generated after the test
 suite has produced its data files. The artifact tool ports Basilisk's AWK
@@ -191,8 +197,6 @@ python -m gititpy.artifacts_cli \
   renderer.
 - Build static page output, raw source copies, directory indexes, optional
   `/src/` source pages, and a client-side search index.
-- Optionally show page history and recent activity if `wiki-pages/` itself is a
-  Git repository; no Git repository is created or modified by default.
 - Use Gitit static assets for the basic layout.
 
 There is intentionally no login system in the static-generator workflow.

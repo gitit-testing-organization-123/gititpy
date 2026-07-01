@@ -113,15 +113,6 @@ def is_stageable_artifact(artifact_dir: Path, path: Path) -> bool:
     return True
 
 
-def is_compiled_binary(path: Path) -> bool:
-    try:
-        with path.open("rb") as handle:
-            header = handle.read(4)
-    except OSError:
-        return False
-    return header == b"\x7fELF"
-
-
 def referenced_artifacts(source_path: Path, artifact_rel_dir: str) -> tuple[str, ...]:
     try:
         source = source_path.read_text(encoding="utf-8")

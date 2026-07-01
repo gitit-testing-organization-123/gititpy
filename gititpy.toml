@@ -1,6 +1,7 @@
 [site]
 title = "GititPy"
-base_url = ""
+base_url = "http://localhost:8000"
+edit_base_url = "https://github.com/gitit-testing-organization-123/wiki/edit/main"
 mathjax_url = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
 table_of_contents = true
 
@@ -13,11 +14,13 @@ template_roots = ["templates"]
 static_roots = ["static"]
 
 [artifacts]
-base_url = "artifacts.localhost"
+base_url = "https://basilisk.ric1.cdn.digitaloceanspaces.com"
+source_local_root = "basilisk/build/release/src"
+sandbox_local_root = "sandbox-artifacts"
 
 [build]
 source = true
-source_tags = true
+source_tags = false
 qcc_command = "qcc"
 jobs = 4
 verbose = false

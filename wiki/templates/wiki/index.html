@@ -5,7 +5,7 @@
   <div class="index">
     <ul>
       {% for page in pages %}
-        <li class="page"><a href="{{ page.href }}">{{ page.label }}</a></li>
+        <li class="page"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><a href="{{ page.href }}">{{ page.label }}</a></li>
       {% else %}
         <li>No pages yet.</li>
       {% endfor %}

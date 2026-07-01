@@ -1,25 +1,27 @@
-<div id="logo">
-  <a href="{{ front_url }}"><img src="{{ static_url }}wiki/img/logo.png" alt="{{ wiki_title }}"></a>
+<div id="logo" class="mb-3">
+  <a class="d-inline-block" href="{{ front_url }}"><img src="{{ static_url }}wiki/img/logo.png" alt="{{ wiki_title }}"></a>
 </div>
-<div class="sitenav">
-  <fieldset>
-    <legend>Site</legend>
-    <ul>
-      <li><a href="{{ front_url }}">Front page</a></li>
-      <li><a href="{{ all_pages_url }}">All pages</a></li>
-      <li><a href="{{ help_url }}">Help</a></li>
+<div class="sitenav vstack gap-3">
+  <section class="card">
+    <div class="card-header fw-semibold">Site</div>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item"><a href="{{ front_url }}">Front page</a></li>
+      <li class="list-group-item"><a href="{{ all_pages_url }}">All pages</a></li>
+      <li class="list-group-item"><a href="{{ help_url }}">Help</a></li>
     </ul>
-    <form id="searchform" action="{{ search_url }}" method="get">
-      <input class="search_term" type="text" name="q" value="" placeholder="">
-      <input type="submit" value="Search">
+    <form id="searchform" class="card-body" action="{{ search_url }}" method="get">
+      <div class="input-group input-group-sm">
+        <input class="search_term form-control" type="search" name="q" value="" placeholder="">
+        <input class="btn btn-outline-secondary" type="submit" value="Search">
+      </div>
     </form>
-  </fieldset>
-  <fieldset>
-    <legend>Development</legend>
-    <ul>
+  </section>
+  <section class="card">
+    <div class="card-header fw-semibold">Development</div>
+    <ul class="list-group list-group-flush">
       {% for tree in source_tree_links %}
-        <li><a href="{{ tree.href }}">{{ tree.label }}</a></li>
+        <li class="list-group-item"><a href="{{ tree.href }}">{{ tree.label }}</a></li>
       {% endfor %}
     </ul>
-  </fieldset>
+  </section>
 </div>

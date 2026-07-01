@@ -6,14 +6,16 @@
 
 {% block content %}
   <h1 class="pageTitle">{% if creating %}Create{% else %}Edit{% endif %} {{ page_title }}</h1>
-  <form id="editform" method="post">
+  <form id="editform" class="vstack gap-3" method="post">
     {% csrf_token %}
-    <textarea name="content" spellcheck="false">{{ content }}</textarea>
-    <label for="logMsg">Change description</label>
-    <input id="logMsg" type="text" name="message" value="{% if creating %}Create {{ page_slug }}{% else %}Update {{ page_slug }}{% endif %}">
-    <p>
-      <input type="submit" value="Save">
-      <a class="button" href="{{ page_url }}">Cancel</a>
-    </p>
+    <textarea class="form-control font-monospace" name="content" spellcheck="false">{{ content }}</textarea>
+    <div>
+      <label class="form-label" for="logMsg">Change description</label>
+      <input id="logMsg" class="form-control" type="text" name="message" value="{% if creating %}Create {{ page_slug }}{% else %}Update {{ page_slug }}{% endif %}">
+    </div>
+    <div class="d-flex gap-2">
+      <input class="btn btn-primary" type="submit" value="Save">
+      <a class="button btn btn-outline-secondary" href="{{ page_url }}">Cancel</a>
+    </div>
   </form>
 {% endblock %}

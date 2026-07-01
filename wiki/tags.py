@@ -32,6 +32,8 @@ def generate_qcc_tags(
     source_root: Path,
     qcc_command: str = "qcc",
     timeout: int = 30,
+    basilisk_root: Path | None = None,
+    include_roots: tuple[Path, ...] = (),
 ) -> QccTagsResult:
     if not is_qcc_tag_source(path):
         return QccTagsResult(skipped=True)
@@ -47,7 +49,7 @@ def generate_qcc_tags(
     source_root = source_root.resolve()
     path = path.resolve()
     qcc_input, cwd = qcc_input_path(path, source_root)
-    env = qcc_environment(source_root)
+    env = qcc_environment(basilisk_root or source_root, include_roots or (source_root,))
     try:
         result = subprocess.run(
             [qcc, "-tags", qcc_input],
@@ -75,13 +77,16 @@ def qcc_input_path(path: Path, source_root: Path) -> tuple[str, Path]:
         return path.name, path.parent
 
 
-def qcc_environment(source_root: Path) -> dict[str, str]:
+def qcc_environment(basilisk_root: Path, include_roots: tuple[Path, ...]) -> dict[str, str]:
     env = os.environ.copy()
-    source_root_text = str(source_root)
-    env["BASILISK"] = source_root_text
+    basilisk_root_text = str(basilisk_root.resolve())
+    include_path = [str(path.resolve()) for path in include_roots]
+    if basilisk_root_text not in include_path:
+        include_path.append(basilisk_root_text)
+    env["BASILISK"] = basilisk_root_text
     existing_include_path = env.get("BASILISK_INCLUDE_PATH")
     env["BASILISK_INCLUDE_PATH"] = (
-        f"{source_root_text}:{existing_include_path}" if existing_include_path else source_root_text
+        f"{':'.join(include_path)}:{existing_include_path}" if existing_include_path else ":".join(include_path)
     )
     return env
 

@@ -7,13 +7,15 @@
 {% block content %}
   <h1 class="pageTitle">Delete {{ page_title }}</h1>
   <p>This removes the current page file, but the old content remains recoverable from Git history.</p>
-  <form method="post">
+  <form class="vstack gap-3" method="post">
     {% csrf_token %}
-    <label for="logMsg">Change description</label>
-    <input id="logMsg" type="text" name="message" value="Delete {{ page_slug }}">
-    <p>
-      <input type="submit" value="Delete">
-      <a class="button" href="{{ page_url }}">Cancel</a>
-    </p>
+    <div>
+      <label class="form-label" for="logMsg">Change description</label>
+      <input id="logMsg" class="form-control" type="text" name="message" value="Delete {{ page_slug }}">
+    </div>
+    <div class="d-flex gap-2">
+      <input class="btn btn-danger" type="submit" value="Delete">
+      <a class="button btn btn-outline-secondary" href="{{ page_url }}">Cancel</a>
+    </div>
   </form>
 {% endblock %}

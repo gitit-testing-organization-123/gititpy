@@ -594,7 +594,6 @@ goto find_rule; \
   #include <sys/stat.h>
   #include <unistd.h>
   #include <glob.h>
-  #include <time.h>
   #include <assert.h>
    
   #undef YY_BUF_SIZE
@@ -1367,9 +1366,7 @@ YY_RULE_SETUP
       output_c(*s++);
     printf (" (<a href=\"#\" id=\"buttonplot%d\">script</a>)", yyextra->nplots);
     output_s ("](");
-    char timestamp[80];
-    sprintf (timestamp, "?%ld", time (NULL));
-    char * name = acat (yyextra->basename, "/", yyextra->gnuplot_output, timestamp, NULL);
+    char * name = acat (yyextra->basename, "/", yyextra->gnuplot_output, NULL);
     output_s (name);
     free (name);
     output_s(")");
@@ -1440,9 +1437,6 @@ YY_RULE_SETUP
 
       output_s ("<a href=\"");
       output_s (link);
-      char tstamp[80];
-      snprintf (tstamp, 79, "?%ld", time (NULL));
-      fputs (tstamp, yyextra->out);
       output_s ("\">");
       
       output_s ("<img ");
@@ -1486,7 +1480,6 @@ YY_RULE_SETUP
       }
       output_s ("controls preload=\"metadata\"><source src=\"");
       output_s (link);
-      fprintf (yyextra->out, "?%ld", time (NULL));
       output_s ("\" type = \"video/");
       output_s (!strcmp(link + strlen(link) - 4, ".mp4") ? "mp4" : "ogg");
       output_s ("\"/>Your browser does not support the video tag.</video>");
@@ -1502,7 +1495,6 @@ YY_RULE_SETUP
     output_s (yytext);
     output_s ("](");
     output_s (link);
-    fprintf (yyextra->out, "?%ld", time (NULL));
     output_c (')');
   }
   free (link);
@@ -2977,5 +2969,4 @@ int main (int argc, char * argv[])
   literate (f, argv[1], atoi(argv[2]));
   return 0;
 }
-
 

@@ -1,0 +1,51 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python-tests:
+    name: Python tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            gnuplot \
+            imagemagick \
+            pandoc
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+
+      - name: Build Darcsit helpers
+        run: python -m wiki.darcsit_helpers.build
+
+      - name: Run tests
+        run: pytest --junitxml build/test-results/wiki-tests.xml wiki/tests
+
+      - name: Upload JUnit XML
+        if: ${{ !cancelled() && hashFiles('build/test-results/*.xml') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: build/test-results/*.xml
+          if-no-files-found: error

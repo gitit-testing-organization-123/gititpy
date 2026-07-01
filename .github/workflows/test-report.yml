@@ -1,0 +1,27 @@
+name: Test Report
+
+on:
+  workflow_run:
+    workflows: [Tests]
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+  checks: write
+
+jobs:
+  publish:
+    name: Publish test report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Publish Python test report
+        uses: dorny/test-reporter@v3
+        with:
+          artifact: test-results
+          name: Python tests
+          path: "*.xml"
+          reporter: python-xunit
+          fail-on-error: true

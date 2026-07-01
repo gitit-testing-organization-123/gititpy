@@ -560,7 +560,7 @@ class StaticSiteBuilder:
     def tree_sitemap_urls(self, tree: StaticTree) -> list[str]:
         if tree.kind == "wiki":
             urls = [self.urls.front_url()]
-            urls.extend(self.urls.page_url(slug) for slug in self.renderable_wiki_slugs() if slug != "FrontPage")
+            urls.extend(self.urls.page_url(slug) for slug in self.renderable_wiki_slugs() if slug != "Front Page")
             urls.extend(self.urls.directory_url(slug) for slug in self.renderable_wiki_directory_slugs())
             return urls
         if not tree.root.exists():

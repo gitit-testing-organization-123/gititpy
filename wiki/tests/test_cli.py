@@ -24,7 +24,7 @@ class CliTests(unittest.TestCase):
             root = Path(tmpdir)
             wiki_root = root / 'pages'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# CLI Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# CLI Front\n')
             status = main(['--base-dir', str(root), '--wiki-root', str(wiki_root), 'build', '--output', str(output)])
             self.assertEqual(status, 0)
             self.assertIn('CLI Front', (output / 'index.html').read_text(encoding='utf-8'))
@@ -34,7 +34,7 @@ class CliTests(unittest.TestCase):
             root = Path(tmpdir)
             wiki_root = root / 'content'
             output = root / 'site'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Config Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Config Front\n')
             (root / 'gititpy.toml').write_text('\n        [site]\n        title = "Configured Site"\n        base_url = "/docs"\n\n        [paths]\n        wiki_root = "content"\n        output = "site"\n\n        [build]\n        source = false\n        jobs = 1\n        ', encoding='utf-8')
             status = main(['--base-dir', str(root), 'build'])
             self.assertEqual(status, 0)
@@ -48,14 +48,14 @@ class CliTests(unittest.TestCase):
             root = Path(tmpdir)
             wiki_root = root / 'content'
             output = root / 'site'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Config Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Config Front\n')
             (root / 'gititpy.toml').write_text('\n        [site]\n        edit_base_url = "https://github.com/example/wiki/edit/main"\n\n        [paths]\n        wiki_root = "content"\n        output = "site"\n\n        [build]\n        source = false\n        ', encoding='utf-8')
 
             status = main(['--base-dir', str(root), 'build'])
 
             self.assertEqual(status, 0)
             rendered = (output / 'index.html').read_text(encoding='utf-8')
-            self.assertIn('href="https://github.com/example/wiki/edit/main/FrontPage.md"', rendered)
+            self.assertIn('href="https://github.com/example/wiki/edit/main/Front Page.md"', rendered)
 
     def test_cli_arguments_override_gititpy_toml(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -63,8 +63,8 @@ class CliTests(unittest.TestCase):
             configured_root = root / 'configured'
             override_root = root / 'override'
             output = root / 'site'
-            WikiRepository(configured_root).write_page('FrontPage', '# Configured\n')
-            WikiRepository(override_root).write_page('FrontPage', '# Overridden\n')
+            WikiRepository(configured_root).write_page('Front Page', '# Configured\n')
+            WikiRepository(override_root).write_page('Front Page', '# Overridden\n')
             (root / 'gititpy.toml').write_text('\n        [paths]\n        wiki_root = "configured"\n        output = "site"\n        ', encoding='utf-8')
             status = main(['--base-dir', str(root), '--wiki-root', str(override_root), 'build'])
             self.assertEqual(status, 0)
@@ -77,7 +77,7 @@ class CliTests(unittest.TestCase):
             root = Path(tmpdir)
             wiki_root = root / 'content'
             output = root / 'site'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             (root / 'gititpy.toml').write_text('\n        [site]\n        edit_base_url = "https://github.com/example/wiki/edit/main"\n\n        [paths]\n        wiki_root = "content"\n        output = "site"\n\n        [build]\n        source = false\n        ', encoding='utf-8')
 
             status = main([
@@ -90,15 +90,15 @@ class CliTests(unittest.TestCase):
 
             self.assertEqual(status, 0)
             rendered = (output / 'index.html').read_text(encoding='utf-8')
-            self.assertIn('href="https://github.com/example/wiki/edit/dev/FrontPage.md"', rendered)
-            self.assertNotIn('href="https://github.com/example/wiki/edit/main/FrontPage.md"', rendered)
+            self.assertIn('href="https://github.com/example/wiki/edit/dev/Front Page.md"', rendered)
+            self.assertNotIn('href="https://github.com/example/wiki/edit/main/Front Page.md"', rendered)
 
     def test_cli_verbose_build_prints_progress(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             wiki_root = root / 'pages'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Verbose Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Verbose Front\n')
             stdout = StringIO()
             with redirect_stdout(stdout):
                 status = main(['--base-dir', str(root), '--wiki-root', str(wiki_root), 'build', '--output', str(output), '--no-source', '--verbose'])

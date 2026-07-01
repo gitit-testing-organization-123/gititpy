@@ -33,7 +33,7 @@ class StaticUrls:
         return self.url("/static/")
 
     def page_url(self, slug: str) -> str:
-        if slug == "FrontPage":
+        if slug == "Front Page":
             return self.front_url()
         return self.tree_page_url(None, slug)
 
@@ -46,7 +46,7 @@ class StaticUrls:
         return self.tree_directory_url(None, slug)
 
     def page_output_path(self, output_dir: Path, slug: str) -> Path:
-        if slug == "FrontPage":
+        if slug == "Front Page":
             return output_dir / "index.html"
         return self.tree_page_output_path(output_dir, None, slug)
 

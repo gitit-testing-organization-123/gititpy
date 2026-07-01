@@ -17,7 +17,7 @@ DEFAULT_HELP_PAGE = """# Help
 ## Pages
 
 Pages are written in Markdown. A page name maps to a Markdown file in the local
-wiki page tree. For example, `FrontPage` is stored as `FrontPage.md`.
+wiki page tree. For example, `Front Page` is stored as `Front Page.md`.
 Pages with source-code extensions, such as `example.c` or `script.py`, are
 stored under their exact names and rendered with Darcsit-style page magic when
 documentation blocks are present.
@@ -26,7 +26,7 @@ documentation blocks are present.
 
 Use regular Markdown links:
 
-    [Front page](FrontPage)
+    [Front page](Front Page)
 
 You can also use simple wiki links:
 
@@ -59,7 +59,7 @@ class WikiRepository:
         if not self.seed_defaults or self.has_page_files():
             return
         for slug, content in {
-            "FrontPage": DEFAULT_FRONT_PAGE,
+            "Front Page": DEFAULT_FRONT_PAGE,
             "Help": DEFAULT_HELP_PAGE,
         }.items():
             path = self.page_path(slug)
@@ -77,9 +77,9 @@ class WikiRepository:
         return False
 
     def normalize_slug(self, value: str | None) -> str:
-        slug = (value or "FrontPage").strip().strip("/")
+        slug = (value or "Front Page").strip().strip("/")
         if not slug:
-            return "FrontPage"
+            return "Front Page"
         slug = re.sub(r"\s+", "_", slug)
         path = PurePosixPath(slug)
         if path.is_absolute() or ".." in path.parts:
@@ -103,7 +103,7 @@ class WikiRepository:
 
     def existing_page_path(self, slug: str, normalized: str) -> Path | None:
         candidates = []
-        raw = (slug or "FrontPage").strip().strip("/")
+        raw = (slug or "Front Page").strip().strip("/")
         if raw:
             self.validate_path_parts(PurePosixPath(raw))
             if PurePosixPath(raw).suffix:

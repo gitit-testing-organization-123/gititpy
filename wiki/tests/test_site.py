@@ -25,7 +25,7 @@ class StaticSiteTests(unittest.TestCase):
             wiki_root = root / 'pages'
             output = root / 'public'
             repo = WikiRepository(wiki_root)
-            repo.write_page('FrontPage', '# Static Front\n\nSee [[Help]].')
+            repo.write_page('Front Page', '# Static Front\n\nSee [[Help]].')
             repo.write_page('sandbox', '# Sandbox page\n')
             repo.write_page('sandbox/PageOne', '# Page One\n')
             (wiki_root / 'sandbox' / 'movie.mp4').write_bytes(b'movie')
@@ -49,7 +49,7 @@ class StaticSiteTests(unittest.TestCase):
             wiki_root = root / 'pages'
             source_root = root / 'basilisk' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n\n[Source](/src/example.c)\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n\n[Source](/src/example.c)\n')
             source_root.mkdir(parents=True)
             (source_root / 'example.c').write_text(source, encoding='utf-8')
             (source_root / 'README.md').write_text('[Example](example.c)\n', encoding='utf-8')
@@ -87,7 +87,7 @@ class StaticSiteTests(unittest.TestCase):
             sandbox_root = root / 'sandbox'
             source_root = root / 'basilisk' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             WikiRepository(wiki_root).write_page('Guide', '# Guide\n')
             WikiRepository(wiki_root).write_page('docs/Page', '# Docs\n')
             sandbox_repo = WikiRepository(sandbox_root, seed_defaults=False)
@@ -122,7 +122,7 @@ class StaticSiteTests(unittest.TestCase):
             root = Path(tmpdir)
             wiki_root = root / 'pages'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
 
             StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False), output_dir=output, base_url='https://example.org/docs').build()
 
@@ -143,7 +143,7 @@ class StaticSiteTests(unittest.TestCase):
             sandbox_root = root / 'sandbox'
             source_root = root / 'basilisk' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             WikiRepository(wiki_root).write_page('Guide', '# Guide\n')
             WikiRepository(wiki_root).write_page('docs/Page', '# Docs\n')
             sandbox_repo = WikiRepository(sandbox_root, seed_defaults=False)
@@ -164,7 +164,7 @@ class StaticSiteTests(unittest.TestCase):
             root = Path(tmpdir)
             wiki_root = root / 'pages'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
 
             StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False), output_dir=output).build()
 
@@ -179,7 +179,7 @@ class StaticSiteTests(unittest.TestCase):
             wiki_root = root / 'pages'
             output = root / 'public'
             repo = WikiRepository(wiki_root)
-            repo.write_page('FrontPage', '# Front\n')
+            repo.write_page('Front Page', '# Front\n')
             repo.write_page('Guides/Intro Page', '# Intro\n')
 
             StaticSiteBuilder(
@@ -194,7 +194,7 @@ class StaticSiteTests(unittest.TestCase):
 
             front = (output / 'index.html').read_text(encoding='utf-8')
             guide = (output / 'Guides' / 'Intro_Page' / 'index.html').read_text(encoding='utf-8')
-            self.assertIn('href="https://github.com/example/wiki/edit/main/FrontPage.md"', front)
+            self.assertIn('href="https://github.com/example/wiki/edit/main/Front Page.md"', front)
             self.assertIn('href="https://github.com/example/wiki/edit/main/Guides/Intro_Page.md"', guide)
 
     def test_static_build_can_skip_default_source_tree(self):
@@ -203,7 +203,7 @@ class StaticSiteTests(unittest.TestCase):
             wiki_root = root / 'pages'
             source_root = root / 'basilisk' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             source_root.mkdir(parents=True)
             (source_root / 'example.c').write_text('int main(void) { return 0; }\n', encoding='utf-8')
             builder = StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False), output_dir=output)
@@ -216,7 +216,7 @@ class StaticSiteTests(unittest.TestCase):
             wiki_root = root / 'pages'
             sandbox_root = root / 'sandbox'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             WikiRepository(wiki_root).write_page('sandbox/OldPage', '# Old Sandbox\n')
             sandbox_repo = WikiRepository(sandbox_root, seed_defaults=False)
             sandbox_repo.write_page('README', '# New Sandbox\n\nsearchable sandbox text')
@@ -228,7 +228,7 @@ class StaticSiteTests(unittest.TestCase):
             self.assertTrue((output / 'sandbox' / 'user' / 'index.html').is_file())
             self.assertTrue((output / 'sandbox' / 'user' / 'README.md' / 'index.html').is_file())
             self.assertFalse((output / 'sandbox' / 'OldPage.html').exists())
-            self.assertFalse((sandbox_root / 'FrontPage.md').exists())
+            self.assertFalse((sandbox_root / 'Front Page.md').exists())
             self.assertFalse((sandbox_root / 'Help.md').exists())
             sandbox_page = (output / 'sandbox' / 'README.md' / 'index.html').read_text(encoding='utf-8')
             self.assertIn('New Sandbox', sandbox_page)
@@ -249,7 +249,7 @@ class StaticSiteTests(unittest.TestCase):
             wiki_root = root / 'pages'
             sandbox_root = root / 'sandbox'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             WikiRepository(sandbox_root, seed_defaults=False).write_page('README', '# Sandbox\n')
             StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, sandbox_root=sandbox_root, build_source=False), output_dir=output).build()
             rendered = (output / 'index.html').read_text(encoding='utf-8')
@@ -261,7 +261,7 @@ class StaticSiteTests(unittest.TestCase):
             root = Path(tmpdir)
             wiki_root = root / 'pages'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Incremental Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Incremental Front\n')
             builder = StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False), output_dir=output)
             builder.build()
             with mock.patch('wiki.site.render_darcsit', side_effect=AssertionError('should skip')):
@@ -275,15 +275,15 @@ class StaticSiteTests(unittest.TestCase):
             wiki_root = root / 'pages'
             output = root / 'public'
             repo = WikiRepository(wiki_root)
-            repo.write_page('FrontPage', '# Hash Front\n')
+            repo.write_page('Front Page', '# Hash Front\n')
             StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False), output_dir=output).build()
-            source_path = repo.page_path('FrontPage')
+            source_path = repo.page_path('Front Page')
             stat_result = source_path.stat()
             os.utime(source_path, ns=(stat_result.st_atime_ns + 1000000000, stat_result.st_mtime_ns + 1000000000))
             with mock.patch('wiki.site.render_darcsit', side_effect=AssertionError('should skip')):
                 result = StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False), output_dir=output).build()
             manifest = json.loads((output / '.gititpy-build.json').read_text(encoding='utf-8'))
-            item = manifest['items']['wiki:FrontPage']
+            item = manifest['items']['wiki:Front Page']
             self.assertGreater(result.skipped_files, 0)
             self.assertIn('sha256', item)
             self.assertNotIn('mtime_ns', item)
@@ -294,9 +294,9 @@ class StaticSiteTests(unittest.TestCase):
             wiki_root = root / 'pages'
             output = root / 'public'
             repo = WikiRepository(wiki_root)
-            repo.write_page('FrontPage', '# Incremental Front\n')
+            repo.write_page('Front Page', '# Incremental Front\n')
             StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False), output_dir=output).build()
-            repo.write_page('FrontPage', '# Incremental Front Changed\n\nExtra text.\n')
+            repo.write_page('Front Page', '# Incremental Front Changed\n\nExtra text.\n')
             with mock.patch('wiki.site.render_darcsit', return_value='<p>Changed render</p>') as render:
                 StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False), output_dir=output).build()
             self.assertEqual(render.call_count, 1)
@@ -307,7 +307,7 @@ class StaticSiteTests(unittest.TestCase):
             root = Path(tmpdir)
             wiki_root = root / 'pages'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Incremental Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Incremental Front\n')
             StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False), output_dir=output).build()
             with mock.patch('wiki.site.render_darcsit', return_value='<p>Forced render</p>') as render:
                 result = StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False), output_dir=output).build(clean=True, force_rebuild=True)
@@ -321,7 +321,7 @@ class StaticSiteTests(unittest.TestCase):
             wiki_root = root / 'pages'
             source_root = root / 'basilisk' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             source_root.mkdir(parents=True)
             (source_root / 'generated.c').write_text('int generated(void) { return 1; }\n', encoding='utf-8')
 
@@ -342,7 +342,7 @@ class StaticSiteTests(unittest.TestCase):
             wiki_root = root / 'pages'
             sandbox_root = root / 'sandbox'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             sandbox_root.mkdir(parents=True)
             (sandbox_root / 'generated.c').write_text('int generated(void) { return 1; }\n', encoding='utf-8')
 
@@ -361,7 +361,7 @@ class StaticSiteTests(unittest.TestCase):
             root = Path(tmpdir)
             wiki_root = root / 'pages'
             output = root / 'configured-public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, output_dir=output, base_url='/docs', build_source=False)).build()
             self.assertTrue((output / 'index.html').is_file())
             self.assertIn('<link rel="canonical" href="/docs/">', (output / 'index.html').read_text(encoding='utf-8'))
@@ -372,7 +372,7 @@ class StaticSiteTests(unittest.TestCase):
             wiki_root = root / 'pages'
             configured_output = root / 'configured-public'
             override_output = root / 'override-public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, output_dir=configured_output, base_url='/docs', build_source=False), output_dir=override_output, base_url='/override').build()
             self.assertFalse((configured_output / 'index.html').exists())
             self.assertTrue((override_output / 'index.html').is_file())
@@ -384,7 +384,7 @@ class StaticSiteTests(unittest.TestCase):
             wiki_root = root / 'pages'
             sandbox_root = root / 'missing-sandbox'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             result = StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, sandbox_root=sandbox_root, build_source=False), output_dir=output).build()
             self.assertFalse(sandbox_root.exists())
             self.assertFalse((output / 'sandbox' / 'index.html').exists())
@@ -396,7 +396,7 @@ class StaticSiteTests(unittest.TestCase):
             wiki_root = root / 'pages'
             source_root = root / 'basilisk' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             (source_root / 'old').mkdir(parents=True)
             (source_root / 'old' / 'example.c').write_text('int main(void) { return 0; }\n', encoding='utf-8')
             StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, generate_source_tags=False, jobs=1), output_dir=output).build()
@@ -413,7 +413,7 @@ class StaticSiteTests(unittest.TestCase):
             output = root / 'public'
             template_root = root / 'templates'
             static_root = root / 'static'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Template Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Template Front\n')
             (template_root / 'wiki').mkdir(parents=True)
             (template_root / 'wiki' / 'page.html').write_text('<!doctype html><title>{{ wiki_title }}</title><main>{{ content_html|safe }}</main>', encoding='utf-8')
             (static_root / 'wiki' / 'css').mkdir(parents=True)

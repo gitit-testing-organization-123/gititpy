@@ -24,7 +24,7 @@ class StaticLinkTests(unittest.TestCase):
             root = Path(tmpdir)
             wiki_root = root / 'pages'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             rendered_content = '<a href="/artifacts/examples/bubble/movie.mp4">movie</a><img src="/artifacts/examples/bubble/plot 1.png?download=1#frame"><video poster="/artifacts/examples/bubble/poster.png" src="/local.mp4"></video><a href="/Help.html">help</a>'
             with mock.patch('wiki.site.render_darcsit', return_value=rendered_content):
                 StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False, artifact_base_url='https://artifacts.example.org/site'), output_dir=output).build()
@@ -41,7 +41,7 @@ class StaticLinkTests(unittest.TestCase):
             wiki_root = root / 'pages'
             source_root = root / 'basilisk' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             (source_root / 'test').mkdir(parents=True)
             (source_root / 'test' / 'vortex.c').write_text('int main(void) { return 0; }\n', encoding='utf-8')
             rendered_content = '<a href="vortex/vort.mp4">movie</a><img src="vortex/plot 1.png?download=1#frame"><a href="other/movie.mp4">other</a>'
@@ -59,7 +59,7 @@ class StaticLinkTests(unittest.TestCase):
             source_root = root / 'basilisk' / 'src'
             artifact_root = root / 'basilisk' / 'build' / 'release' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             (source_root / 'test').mkdir(parents=True)
             (source_root / 'test' / 'neumann.c').write_text('int main(void) { return 0; }\n', encoding='utf-8')
             (artifact_root / 'test' / 'dirichlet').mkdir(parents=True)
@@ -78,7 +78,7 @@ class StaticLinkTests(unittest.TestCase):
             sandbox_root = root / 'sandbox'
             sandbox_artifact_root = root / 'sandbox-build'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             (sandbox_root / 'cases').mkdir(parents=True)
             (sandbox_root / 'cases' / 'neumann.c').write_text('int main(void) { return 0; }\n', encoding='utf-8')
             (sandbox_artifact_root / 'cases' / 'dirichlet').mkdir(parents=True)
@@ -95,7 +95,7 @@ class StaticLinkTests(unittest.TestCase):
             wiki_root = root / 'pages'
             sandbox_root = root / 'sandbox'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             (sandbox_root / 'cases').mkdir(parents=True)
             source_path = sandbox_root / 'cases' / 'stokes.c'
             source_path.write_text('int main(void) { return 0; }\n', encoding='utf-8')
@@ -112,7 +112,7 @@ class StaticLinkTests(unittest.TestCase):
             wiki_root = root / 'pages'
             source_root = root / 'basilisk' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             (source_root / 'test').mkdir(parents=True)
             source_path = source_root / 'test' / 'stokes.c'
             source_path.write_text('int main(void) { return 0; }\n', encoding='utf-8')
@@ -129,7 +129,7 @@ class StaticLinkTests(unittest.TestCase):
             wiki_root = root / 'pages'
             source_root = root / 'basilisk' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             (source_root / 'test').mkdir(parents=True)
             (source_root / 'test' / 'stokes.c').write_text('int main(void) { return 0; }\n', encoding='utf-8')
             rendered_content = '<img src="/tmp/tmpabc123/_plot0.svg?1782798642">'
@@ -145,7 +145,7 @@ class StaticLinkTests(unittest.TestCase):
             wiki_root = root / 'pages'
             source_root = root / 'basilisk' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             (source_root / 'test').mkdir(parents=True)
             (source_root / 'test' / 'static_bubble.c').write_text('int main(void) { return 0; }\n', encoding='utf-8')
             rendered_content = '<img src="/tmp/tmp3y5ywol9/p001cbt.svg?1782840608">'
@@ -161,7 +161,7 @@ class StaticLinkTests(unittest.TestCase):
             wiki_root = root / 'pages'
             source_root = root / 'basilisk' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             source_root.mkdir(parents=True)
             source_path = source_root / 'example.c'
             source_path.write_text('int main(void) { return 0; }\n', encoding='utf-8')
@@ -182,7 +182,7 @@ class StaticLinkTests(unittest.TestCase):
             wiki_root = root / 'pages'
             sandbox_root = root / 'sandbox'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             sandbox_root.mkdir(parents=True)
             source_path = sandbox_root / 'example.c'
             source_path.write_text('int main(void) { return 0; }\n', encoding='utf-8')
@@ -204,7 +204,7 @@ class StaticLinkTests(unittest.TestCase):
             sandbox_root = root / 'sandbox'
             source_root = root / 'basilisk' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             sandbox_root.mkdir(parents=True)
             source_root.mkdir(parents=True)
             source_path = sandbox_root / 'example.c'
@@ -235,7 +235,7 @@ class StaticLinkTests(unittest.TestCase):
             wiki_root = root / 'pages'
             source_root = root / 'basilisk' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             source_root.mkdir(parents=True)
             (source_root / 'all-mach.h').write_text('/**\n        [Poisson](poisson.h)\n         */\n        ', encoding='utf-8')
             (source_root / 'poisson.h').write_text('int poisson(void);\n', encoding='utf-8')
@@ -252,7 +252,7 @@ class StaticLinkTests(unittest.TestCase):
             wiki_root = root / 'pages'
             sandbox_root = root / 'sandbox'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             sandbox_root.mkdir(parents=True)
             (sandbox_root / 'all-mach.h').write_text('#include "poisson.h"\n', encoding='utf-8')
             (sandbox_root / 'poisson.h').write_text('int poisson(void);\n', encoding='utf-8')
@@ -268,7 +268,7 @@ class StaticLinkTests(unittest.TestCase):
             wiki_root = root / 'pages'
             source_root = root / 'basilisk' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             source_root.mkdir(parents=True)
             (source_root / 'all-mach.h').write_text('#include "run.h"\n', encoding='utf-8')
             (source_root / 'run.h').write_text('void run(void);\n', encoding='utf-8')
@@ -284,7 +284,7 @@ class StaticLinkTests(unittest.TestCase):
             wiki_root = root / 'pages'
             sandbox_root = root / 'sandbox'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             sandbox_root.mkdir(parents=True)
             (sandbox_root / 'all-mach.h').write_text('#include "run.h"\n', encoding='utf-8')
             (sandbox_root / 'run.h').write_text('void run(void);\n', encoding='utf-8')
@@ -300,7 +300,7 @@ class StaticLinkTests(unittest.TestCase):
             wiki_root = root / 'pages'
             source_root = root / 'basilisk' / 'src'
             output = root / 'public'
-            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            WikiRepository(wiki_root).write_page('Front Page', '# Front\n')
             (source_root / 'ast').mkdir(parents=True)
             (source_root / 'ast' / 'ast.h').write_text('#include "stack.h"\n', encoding='utf-8')
             (source_root / 'ast' / 'stack.h').write_text('typedef struct Stack Stack;\n', encoding='utf-8')

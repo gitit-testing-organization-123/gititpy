@@ -22,7 +22,7 @@ class StorageTests(unittest.TestCase):
     def test_front_page_is_seeded_as_plain_files(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             repo = WikiRepository(Path(tmpdir) / 'pages')
-            source = repo.read_page('FrontPage')
+            source = repo.read_page('Front Page')
         self.assertIn('Welcome to GititPy', source)
 
     def test_page_can_be_written_without_git_repo(self):

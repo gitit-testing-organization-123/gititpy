@@ -17,23 +17,9 @@
   <fieldset>
     <legend>Development</legend>
     <ul>
-      <li><a href="{{ source_root_url }}">Source code</a></li>
-      {% if sandbox_root_url %}
-        <li><a href="{{ sandbox_root_url }}">Sandbox</a></li>
-      {% endif %}
+      {% for tree in source_tree_links %}
+        <li><a href="{{ tree.href }}">{{ tree.label }}</a></li>
+      {% endfor %}
     </ul>
   </fieldset>
 </div>
-{% if page_slug %}
-  <div class="pageTools">
-    <fieldset>
-      <legend>This page</legend>
-      <ul>
-        <li><a href="{{ raw_page_url }}">Raw page source</a></li>
-        {% if not static_build %}
-          <li><a href="{{ delete_page_url }}">Delete this page</a></li>
-        {% endif %}
-      </ul>
-    </fieldset>
-  </div>
-{% endif %}

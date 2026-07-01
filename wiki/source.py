@@ -39,12 +39,6 @@ class SourceEntry:
     is_dir: bool
 
 
-@dataclass(frozen=True)
-class SourceRenderDecision:
-    render: bool
-    reason: str
-
-
 class SourceTree:
     def __init__(self, root: Path):
         self.root = Path(root)
@@ -83,17 +77,12 @@ class SourceTree:
         return sorted(entries, key=lambda entry: (not entry.is_dir, entry.name.casefold()))
 
     def should_render(self, path: Path) -> bool:
-        return self.render_decision(path).render
-
-    def render_decision(self, path: Path) -> SourceRenderDecision:
         if path.suffix.lower() == ".tags":
-            return SourceRenderDecision(False, "generated-tags")
+            return False
         if self.is_makefile(path):
-            return SourceRenderDecision(True, "makefile")
+            return True
         suffix = path.suffix.lower()
-        if suffix in RENDERED_SOURCE_SUFFIXES:
-            return SourceRenderDecision(True, f"suffix:{suffix or '<none>'}")
-        return SourceRenderDecision(False, "static-file")
+        return suffix in RENDERED_SOURCE_SUFFIXES
 
     def is_makefile(self, path: Path) -> bool:
         name = path.name.lower()

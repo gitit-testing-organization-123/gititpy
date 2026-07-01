@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 import tomllib
 
@@ -122,26 +122,4 @@ def optional_path(value) -> Path | None:
 
 
 def replace_config(config: SiteConfig, **changes) -> SiteConfig:
-    values = {
-        "base_dir": config.base_dir,
-        "wiki_title": config.wiki_title,
-        "wiki_root": config.wiki_root,
-        "sandbox_root": config.sandbox_root,
-        "source_root": config.source_root,
-        "output_dir": config.output_dir,
-        "base_url": config.base_url,
-        "artifact_base_url": config.artifact_base_url,
-        "artifact_root": config.artifact_root,
-        "sandbox_artifact_root": config.sandbox_artifact_root,
-        "build_source": config.build_source,
-        "generate_source_tags": config.generate_source_tags,
-        "qcc_command": config.qcc_command,
-        "jobs": config.jobs,
-        "verbose": config.verbose,
-        "table_of_contents": config.table_of_contents,
-        "mathjax_url": config.mathjax_url,
-        "template_roots": config.template_roots,
-        "static_roots": config.static_roots,
-    }
-    values.update(changes)
-    return SiteConfig(**values)
+    return replace(config, **changes)

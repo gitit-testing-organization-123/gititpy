@@ -1,5 +1,4 @@
 import re
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -77,9 +76,6 @@ class WikiRepository:
                 return True
         return False
 
-    def has_git_history(self) -> bool:
-        return (self.root / ".git").exists()
-
     def normalize_slug(self, value: str | None) -> str:
         slug = (value or "FrontPage").strip().strip("/")
         if not slug:
@@ -149,22 +145,11 @@ class WikiRepository:
             raise PageNameError("Directory path escapes the wiki root.") from exc
         return path
 
-    def relative_page_path(self, slug: str) -> str:
-        return self.page_filename(self.normalize_slug(slug))
-
     def page_filename(self, slug: str) -> str:
         path = PurePosixPath(slug)
         if path.suffix:
             return path.as_posix()
         return f"{path.as_posix()}.md"
-
-    def exists(self, slug: str) -> bool:
-        self.ensure_ready()
-        return self.page_path(slug).is_file()
-
-    def directory_exists(self, slug: str) -> bool:
-        self.ensure_ready()
-        return self.directory_path(slug).is_dir()
 
     def read_page(self, slug: str) -> str:
         self.ensure_ready()
@@ -173,34 +158,12 @@ class WikiRepository:
             raise FileNotFoundError(slug)
         return path.read_text(encoding="utf-8")
 
-    def write_page(self, slug: str, content: str, message: str | None = None):
+    def write_page(self, slug: str, content: str):
         self.ensure_ready()
         normalized = self.normalize_slug(slug)
         path = self.page_path(normalized)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
-
-    def delete_page(self, slug: str, message: str | None = None):
-        self.ensure_ready()
-        normalized = self.normalize_slug(slug)
-        path = self.page_path(normalized)
-        if path.exists():
-            path.unlink()
-
-    def list_pages(self) -> list[str]:
-        self.ensure_ready()
-        pages = []
-        for path in self.root.rglob("*"):
-            if ".git" in path.parts:
-                continue
-            if not path.is_file():
-                continue
-            rel_path = path.relative_to(self.root)
-            if rel_path.suffix in {".md", ".page"}:
-                rel_path = rel_path.with_suffix("")
-            rel = rel_path
-            pages.append(rel.as_posix())
-        return sorted(pages, key=str.casefold)
 
     def list_directory(self, slug: str) -> list[WikiEntry]:
         self.ensure_ready()
@@ -226,51 +189,3 @@ class WikiRepository:
         if rel_path.suffix in {".md", ".page"}:
             rel_path = rel_path.with_suffix("")
         return rel_path.as_posix()
-
-    def search(self, query: str) -> list[dict[str, str]]:
-        self.ensure_ready()
-        needle = query.casefold()
-        if not needle:
-            return []
-        results = []
-        for slug in self.list_pages():
-            text = self.read_page(slug)
-            haystack = text.casefold()
-            if needle not in haystack:
-                continue
-            snippet = self._snippet(text, needle)
-            results.append({"slug": slug, "snippet": snippet})
-        return results
-
-    def commit_all(self, message: str):
-        if not self.has_git_history():
-            return
-        self._git("add", "--all")
-        diff = self._git("diff", "--cached", "--quiet", check=False)
-        if diff.returncode == 0:
-            return
-        self._git(
-            "-c",
-            "user.name=GititPy",
-            "-c",
-            "user.email=gititpy@example.invalid",
-            "-c",
-            "commit.gpgsign=false",
-            "commit",
-            "-m",
-            message,
-        )
-
-    def _git(self, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            ["git", "-C", str(self.root), *args],
-            check=check,
-            capture_output=True,
-            text=True,
-        )
-
-    def _snippet(self, text: str, needle: str) -> str:
-        for line in text.splitlines():
-            if needle in line.casefold():
-                return line.strip()[:240]
-        return text.strip()[:240]

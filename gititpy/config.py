@@ -15,6 +15,7 @@ class SiteConfig:
     source_root: Path | None = None
     output_dir: Path | None = None
     base_url: str = ""
+    edit_base_url: str = ""
     artifact_base_url: str = ""
     artifact_root: Path | None = None
     sandbox_artifact_root: Path | None = None
@@ -97,6 +98,7 @@ def load_config(base_dir: Path, config_path: Path | None = None) -> SiteConfig:
         wiki_title=site.get("title", "GititPy"),
         mathjax_url=site.get("mathjax_url", DEFAULT_MATHJAX_URL),
         base_url=site.get("base_url", ""),
+        edit_base_url=site.get("edit_base_url", ""),
         artifact_base_url=artifacts.get("base_url", ""),
         artifact_root=optional_path(artifacts.get("source_local_root") or artifacts.get("local_root") or artifacts.get("root")),
         sandbox_artifact_root=optional_path(artifacts.get("sandbox_local_root")),

@@ -2,4 +2,9 @@
   <li class="{% if active_tab == 'view' %}selected{% endif %}">
     <a href="{{ page_url }}">view</a>
   </li>
+  {% if edit_page_url %}
+    <li class="{% if active_tab == 'edit' %}selected{% endif %}">
+      <a href="{{ edit_page_url }}">edit</a>
+    </li>
+  {% endif %}
 </ul>

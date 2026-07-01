@@ -1,12 +1,27 @@
 a.sourceLine { display: inline-block; line-height: 1.25; }
 a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
 a.sourceLine:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode { white-space: pre; position: relative; }
-div.sourceCode { margin: 1em 0; }
+.sourceCode { max-width: 100%; }
+code.sourceCode {
+  white-space: pre;
+  position: relative;
+  background: #f9f9f9;
+}
+pre > code.sourceCode {
+  display: inline-block;
+  min-width: 100%;
+}
+div.sourceCode {
+  margin: 1em 0;
+  background: #f9f9f9;
+}
 pre.sourceCode {
   margin: 0;
   display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  box-sizing: border-box;
   padding: 0.5em 0.5em;
   border: 1px dashed #bebab0;
   background: #f9f9f9;
@@ -14,7 +29,7 @@ pre.sourceCode {
 }
 .sourceCode a { color: inherit; }
 @media screen {
-div.sourceCode { overflow: auto; }
+div.sourceCode { overflow-x: auto; overflow-y: hidden; }
 }
 @media print {
 code.sourceCode { white-space: pre-wrap; }

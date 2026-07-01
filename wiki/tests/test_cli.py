@@ -43,6 +43,20 @@ class CliTests(unittest.TestCase):
             self.assertIn('Configured Site', rendered)
             self.assertIn('href="/docs/_index.html"', rendered)
 
+    def test_cli_reads_edit_base_url_from_gititpy_toml(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / 'content'
+            output = root / 'site'
+            WikiRepository(wiki_root).write_page('FrontPage', '# Config Front\n')
+            (root / 'gititpy.toml').write_text('\n        [site]\n        edit_base_url = "https://github.com/example/wiki/edit/main"\n\n        [paths]\n        wiki_root = "content"\n        output = "site"\n\n        [build]\n        source = false\n        ', encoding='utf-8')
+
+            status = main(['--base-dir', str(root), 'build'])
+
+            self.assertEqual(status, 0)
+            rendered = (output / 'index.html').read_text(encoding='utf-8')
+            self.assertIn('href="https://github.com/example/wiki/edit/main/FrontPage.md"', rendered)
+
     def test_cli_arguments_override_gititpy_toml(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -57,6 +71,27 @@ class CliTests(unittest.TestCase):
             rendered = (output / 'index.html').read_text(encoding='utf-8')
             self.assertIn('Overridden', rendered)
             self.assertNotIn('Configured', rendered)
+
+    def test_cli_edit_base_url_overrides_gititpy_toml(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / 'content'
+            output = root / 'site'
+            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            (root / 'gititpy.toml').write_text('\n        [site]\n        edit_base_url = "https://github.com/example/wiki/edit/main"\n\n        [paths]\n        wiki_root = "content"\n        output = "site"\n\n        [build]\n        source = false\n        ', encoding='utf-8')
+
+            status = main([
+                '--base-dir',
+                str(root),
+                'build',
+                '--edit-base-url',
+                'https://github.com/example/wiki/edit/dev',
+            ])
+
+            self.assertEqual(status, 0)
+            rendered = (output / 'index.html').read_text(encoding='utf-8')
+            self.assertIn('href="https://github.com/example/wiki/edit/dev/FrontPage.md"', rendered)
+            self.assertNotIn('href="https://github.com/example/wiki/edit/main/FrontPage.md"', rendered)
 
     def test_cli_verbose_build_prints_progress(self):
         with tempfile.TemporaryDirectory() as tmpdir:

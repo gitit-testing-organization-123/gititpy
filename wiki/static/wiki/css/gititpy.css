@@ -16,12 +16,39 @@ a.button {
   height: auto;
 }
 
+figure,
+.figure {
+  max-width: 100%;
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+figure img,
+figure svg,
+figure video,
+figure canvas,
+.figure img,
+.figure svg,
+.figure video,
+.figure canvas,
+#content > img,
+#content > svg,
+#content > video,
+#content > canvas {
+  max-width: 100%;
+  height: auto;
+}
+
 code {
   background: #f5f5f5;
   padding: 0.1em 0.25em;
 }
 
 pre code {
+  background: transparent;
+  box-sizing: border-box;
+  display: inline-block;
+  min-width: 100%;
   padding: 0;
 }
 
@@ -38,4 +65,260 @@ pre code {
 
 #TOC > ul {
   margin-left: 1em;
+}
+
+@media (prefers-color-scheme: dark) {
+  html,
+  body {
+    background: #11151c;
+    color: #d8dee9;
+  }
+
+  #content,
+  #sidebar fieldset,
+  ul.tabs li {
+    background: #181f2a;
+    border-color: #3a4553;
+    color: #d8dee9;
+  }
+
+  ul.tabs li.selected {
+    border-bottom-color: #181f2a;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  hr {
+    border-color: #3a4553;
+  }
+
+  h1 > a:link,
+  h1 > a:active,
+  h1 > a:hover,
+  h1 > a:focus,
+  h1 > a:visited,
+  h2 > a:link,
+  h2 > a:active,
+  h2 > a:hover,
+  h2 > a:focus,
+  h2 > a:visited,
+  h3 > a:link,
+  h3 > a:active,
+  h3 > a:hover,
+  h3 > a:focus,
+  h3 > a:visited,
+  h4 > a:link,
+  h4 > a:active,
+  h4 > a:hover,
+  h4 > a:focus,
+  h4 > a:visited,
+  h5 > a:link,
+  h5 > a:active,
+  h5 > a:hover,
+  h5 > a:focus,
+  h5 > a:visited,
+  h6 > a:link,
+  h6 > a:active,
+  h6 > a:hover,
+  h6 > a:focus,
+  h6 > a:visited {
+    color: #e5e9f0;
+  }
+
+  a:link,
+  ul.tabs li a {
+    color: #8ab4f8;
+  }
+
+  a:visited {
+    color: #c58af9;
+  }
+
+  a:hover {
+    color: #f2a0a0;
+  }
+
+  a:active,
+  a:focus {
+    color: #f5f7fb;
+  }
+
+  .index a {
+    color: #d8dee9;
+  }
+
+  blockquote,
+  #footer,
+  .search-status,
+  .search_result .search_url {
+    color: #a7b0bd;
+  }
+
+  fieldset,
+  legend,
+  textarea,
+  input[type='text'],
+  input[type='password'],
+  input[type='search'],
+  select,
+  #exportbox select,
+  #searchform input[type='text'],
+  #goform input[type='text'],
+  .search-box input[type='search'] {
+    background: #111820;
+    border-color: #3a4553;
+    color: #e5e9f0;
+  }
+
+  textarea:hover,
+  input[type='text']:hover,
+  input[type='password']:hover,
+  input[type='search']:hover,
+  select:hover {
+    border-color: #58677a;
+  }
+
+  textarea:focus,
+  input[type='text']:focus,
+  input[type='password']:focus,
+  input[type='search']:focus,
+  select:focus {
+    border-color: #8ab4f8;
+    outline-color: #355070;
+  }
+
+  #content pre,
+  code.sourceCode,
+  div.sourceCode,
+  pre.sourceCode {
+    background: #10151d;
+    color: #d8dee9;
+  }
+
+  pre.sourceCode {
+    border-color: #58677a;
+  }
+
+  code {
+    background: #202938;
+    color: #e5e9f0;
+  }
+
+  pre code,
+  pre > code.sourceCode {
+    background: transparent;
+  }
+
+  #TOC,
+  div#TOC {
+    background: #141b24;
+    border-color: #2a3442;
+  }
+
+  .search_result {
+    border-bottom-color: #2a3442;
+  }
+
+  .search_result mark,
+  #pattern,
+  pre.matches span.highlighted {
+    background: #665c21;
+    color: #fff4c2;
+  }
+
+  .added {
+    background: #263f2a;
+  }
+
+  .deleted {
+    color: #8e98a8;
+  }
+
+  #sidebar ul li {
+    color: #8e98a8;
+  }
+
+  button:hover,
+  a.button:hover {
+    background-color: #1d3445;
+    border-color: #426b83;
+    color: #d7efff;
+  }
+
+  a.button {
+    background: #202938;
+    border-color: #3a4553;
+    color: #e5e9f0;
+  }
+
+  code span.al,
+  code span.er {
+    color: #ff8a8a;
+  }
+
+  code span.an,
+  code span.co,
+  code span.cv,
+  code span.in,
+  code span.wa {
+    color: #8fbfd0;
+  }
+
+  code span.at {
+    color: #b8d87a;
+  }
+
+  code span.bn,
+  code span.dv,
+  code span.fl {
+    color: #8bd5a1;
+  }
+
+  code span.cf,
+  code span.kw,
+  code span.ot,
+  .sourceCode .im,
+  .sourceCode .pp {
+    color: #8ab4f8;
+  }
+
+  code span.ch,
+  code span.sc,
+  code span.st,
+  code span.vs {
+    color: #9fcbff;
+  }
+
+  code span.cn {
+    color: #ffb4a8;
+  }
+
+  code span.do {
+    color: #f0a8a8;
+  }
+
+  code span.dt {
+    color: #f6c177;
+  }
+
+  code span.fu,
+  code span.va {
+    color: #c4b5fd;
+  }
+
+  code span.op {
+    color: #b7c0cd;
+  }
+
+  code span.pp {
+    color: #f6c177;
+  }
+
+  code span.ss {
+    color: #e9a6d2;
+  }
 }

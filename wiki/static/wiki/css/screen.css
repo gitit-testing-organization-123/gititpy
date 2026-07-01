@@ -72,7 +72,8 @@ h5 > a:link, h5 > a:active, h5 > a:hover, h5 > a:focus, h5 > a:visited,
 h6 > a:link, h6 > a:active, h6 > a:hover, h6 > a:focus, h6 > a:visited {
         color: black; text-decoration: none; }
 
-#content { border: 1px solid #ccc; background-color: #fff; padding: 1em; font-size: 108%; }
+#maincol, #content { min-width: 0; }
+#content { border: 1px solid #ccc; background-color: #fff; padding: 1em; font-size: 108%; box-sizing: border-box; }
 #content p, #content pre, #content li { line-height: 140%; }
 
 #userbox  { text-align: right; font-weight: bold; margin: 1em; }
@@ -107,9 +108,15 @@ div#categoryList { padding: 0em; margin: 1em 0 0 0; border: 1px dashed #ccc; }
 #goform { padding: 0; margin: 0.3em 0 0.5em 0.4em; }
 #goform input[type='text'] { width: 8.5em; border: 1px solid #ccc; }
 
-.search_result { margin-bottom: 15px; }
-.search_result .match { margin-bottom: 15px; }
+.search-box input[type='search'] { width: 70%; max-width: 32em; border: 1px solid #bbb; padding: 0.25em; }
+.search-status { color: #666; margin: 0.5em 0 1em; }
+.search_result { border-bottom: 1px solid #e2e2e2; margin-bottom: 1em; padding-bottom: 0.8em; }
+.search_result h2 { margin-bottom: 0.15em; }
+.search_result .search_url { color: #666; font-size: 90%; margin: 0 0 0.35em; word-break: break-word; }
+.search_result .match { margin-bottom: 0; }
+.search_result mark { background-color: #fff2a8; padding: 0 0.1em; }
 
+#content pre { max-width: 100%; overflow-x: auto; overflow-y: hidden; box-sizing: border-box; background: #f9f9f9; }
 pre>code { display: block; }
 pre.matches { margin: 0; padding: 0; }
 #pattern { background-color: yellow; font-weight: bold; }
@@ -160,9 +167,15 @@ sup + sup { margin-left: 2px; }
 
 /* Make theme responsive */
 @media (max-width: 768px) {
+  #doc3 {
+    display: flex;
+    flex-direction: column;
+  }
   #yui-main {
     float:none!important;
     margin-left: 0!important;
+    min-width: 0;
+    order: 2;
   }
   #maincol {
     margin-left: 0!important;
@@ -170,6 +183,7 @@ sup + sup { margin-left: 2px; }
   #sidebar {
     width: 100%;
     float: none;
+    order: 1;
   }
   #logo {
     float: left;

@@ -898,7 +898,18 @@ class StaticSiteBuilder:
             "page_title": title_for(slug),
             "page_url": self.urls.page_url(slug),
             "canonical_url": self.urls.page_url(slug),
+            "edit_page_url": self.edit_page_url(slug),
         }
+
+    def edit_page_url(self, slug: str) -> str:
+        if not self.config.edit_base_url:
+            return ""
+        source_path = self.repo.page_path(slug)
+        try:
+            rel_path = source_path.relative_to(self.repo.root).as_posix()
+        except ValueError:
+            return ""
+        return f"{self.config.edit_base_url.rstrip('/')}/{quote(rel_path, safe='/._-~')}"
 
     def wiki_entry_with_href(self, entry):
         if entry.is_dir:
@@ -1133,6 +1144,7 @@ class StaticSiteBuilder:
             "qcc_command": self.config.qcc_command,
             "artifact_base_url": self.config.artifact_base_url,
             "base_url": self.urls.base_url,
+            "edit_base_url": self.config.edit_base_url,
             "templates": template_state,
         }
         return json.dumps(data, sort_keys=True)

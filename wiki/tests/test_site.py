@@ -134,6 +134,44 @@ class StaticSiteTests(unittest.TestCase):
             self.assertNotIn('rel="canonical"', (output / '_search.html').read_text(encoding='utf-8'))
             self.assertFalse((output / '_history' / 'Guide.html').exists())
 
+    def test_static_build_writes_enhanced_search_page(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / 'pages'
+            output = root / 'public'
+            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+
+            StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False), output_dir=output).build()
+
+            rendered = (output / '_search.html').read_text(encoding='utf-8')
+            self.assertIn('type="search"', rendered)
+            self.assertIn('id="search-status"', rendered)
+            self.assertIn('window.GititPySearchIndex = "/search-index.json"', rendered)
+
+    def test_static_build_links_wiki_pages_to_github_editor(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / 'pages'
+            output = root / 'public'
+            repo = WikiRepository(wiki_root)
+            repo.write_page('FrontPage', '# Front\n')
+            repo.write_page('Guides/Intro Page', '# Intro\n')
+
+            StaticSiteBuilder(
+                config=SiteConfig(
+                    base_dir=root,
+                    wiki_root=wiki_root,
+                    build_source=False,
+                    edit_base_url='https://github.com/example/wiki/edit/main',
+                ),
+                output_dir=output,
+            ).build()
+
+            front = (output / 'index.html').read_text(encoding='utf-8')
+            guide = (output / 'Guides' / 'Intro_Page' / 'index.html').read_text(encoding='utf-8')
+            self.assertIn('href="https://github.com/example/wiki/edit/main/FrontPage.md"', front)
+            self.assertIn('href="https://github.com/example/wiki/edit/main/Guides/Intro_Page.md"', guide)
+
     def test_static_build_can_skip_default_source_tree(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

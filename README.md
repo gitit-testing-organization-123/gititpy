@@ -117,6 +117,7 @@ checked-in config.
 [site]
 title = "My Site"
 base_url = ""
+edit_base_url = "https://github.com/example/wiki/edit/main"
 table_of_contents = true
 
 [paths]

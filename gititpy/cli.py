@@ -72,6 +72,7 @@ def main(argv: list[str] | None = None) -> int:
 def add_build_arguments(parser: argparse.ArgumentParser):
     parser.add_argument("--output", default=None, help="Directory for generated files.")
     parser.add_argument("--base-url", default=None, help="Optional URL prefix, e.g. /repository-name.")
+    parser.add_argument("--edit-base-url", default=None, help="Base URL for editing wiki pages, e.g. https://github.com/OWNER/REPO/edit/main.")
     parser.add_argument("--artifacts-base-url", default=None, help="External base URL for /artifacts/... links.")
     parser.add_argument("--artifact-root", default=None, help="Local source artifact tree used when rewriting artifact links.")
     parser.add_argument("--sandbox-artifact-root", default=None, help="Local sandbox artifact tree used when rewriting artifact links.")
@@ -125,6 +126,8 @@ def apply_cli_overrides(config: SiteConfig, args: argparse.Namespace) -> SiteCon
         changes["output_dir"] = Path(args.output)
     if args.base_url is not None:
         changes["base_url"] = args.base_url
+    if args.edit_base_url is not None:
+        changes["edit_base_url"] = args.edit_base_url
     if args.artifacts_base_url is not None:
         changes["artifact_base_url"] = args.artifacts_base_url
     if args.artifact_root is not None:

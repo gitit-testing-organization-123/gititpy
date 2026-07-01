@@ -172,6 +172,7 @@ class StaticSiteBuilder:
         self.log("Rendering utility pages")
         self.render_all_pages_index()
         self.render_search_page()
+        self.render_not_found_page()
         for tree in self.static_trees:
             self.log(f"Rendering {tree.label} {tree.root} with {self.jobs} job(s)")
             self.build_tree(tree)
@@ -339,6 +340,15 @@ class StaticSiteBuilder:
             "search_index_url": self.urls.search_index_url(),
         }
         self.write_html(self.output_dir / "_search.html", self.render_template("wiki/search.html", context))
+
+    def render_not_found_page(self):
+        output = self.output_dir / "404.html"
+        context = self.base_context() | {
+            "page_title": "Page not found",
+            "meta_robots": "noindex",
+        }
+        self.write_html(output, self.render_template("wiki/404.html", context))
+        self.record_generated_item("utility:404", [output], "utility")
 
     def render_source_tree_file(self, browser: StaticTree, path: Path):
         rel = path.relative_to(browser.tree.root).as_posix()
@@ -928,6 +938,7 @@ class StaticSiteBuilder:
         return {
             "wiki_title": self.config.wiki_title,
             "canonical_url": None,
+            "meta_robots": None,
             "front_url": self.urls.front_url(),
             "all_pages_url": self.urls.index_url(),
             "source_tree_links": [

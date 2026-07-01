@@ -117,6 +117,25 @@ class StaticSiteTests(unittest.TestCase):
             self.assertFalse((output / '_recent.html').exists())
             self.assertFalse((output / '_history').exists())
 
+    def test_static_build_writes_not_found_page(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / 'pages'
+            output = root / 'public'
+            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+
+            StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, build_source=False), output_dir=output, base_url='https://example.org/docs').build()
+
+            rendered = (output / '404.html').read_text(encoding='utf-8')
+            self.assertIn('<title>GititPy - Page not found</title>', rendered)
+            self.assertIn('<meta name="robots" content="noindex">', rendered)
+            self.assertNotIn('rel="canonical"', rendered)
+            self.assertNotIn('id="sidebar"', rendered)
+            self.assertNotIn('border rounded', rendered)
+            self.assertIn('href="https://example.org/docs/"', rendered)
+            self.assertIn('href="https://example.org/docs/_search.html"', rendered)
+            self.assertNotIn('404.html', (output / 'sitemap.xml').read_text(encoding='utf-8'))
+
     def test_static_build_writes_canonical_links_for_indexable_pages(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

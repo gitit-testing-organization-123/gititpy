@@ -66,6 +66,7 @@ class StaticSiteTests(unittest.TestCase):
             self.assertIn('<li class="breadcrumb-item active" aria-current="page">example.c</li>', source_page)
             self.assertNotIn('<h1 class="pageTitle">/src/example.c</h1>', source_page)
             self.assertIn('href="/src/example.c/"', (output / 'src' / 'index.html').read_text(encoding='utf-8'))
+            self.assertIn('bi-file-earmark-text', (output / 'src' / 'index.html').read_text(encoding='utf-8'))
             self.assertIn('href="/src/example.c/"', (output / 'index.html').read_text(encoding='utf-8'))
             self.assertIn('href="/src/example.c/"', (output / 'src' / 'README.md' / 'index.html').read_text(encoding='utf-8'))
 
@@ -219,6 +220,7 @@ class StaticSiteTests(unittest.TestCase):
             self.assertIn('<li class="breadcrumb-item active" aria-current="page">README.md</li>', sandbox_page)
             self.assertNotIn('<h1 class="pageTitle">/sandbox/README.md</h1>', sandbox_page)
             self.assertIn('href="/sandbox/user/"', (output / 'sandbox' / 'index.html').read_text(encoding='utf-8'))
+            self.assertIn('bi-folder', (output / 'sandbox' / 'index.html').read_text(encoding='utf-8'))
             self.assertIn('href="/sandbox/"', (output / 'sandbox' / 'user' / 'index.html').read_text(encoding='utf-8'))
             search_index = (output / 'search-index.json').read_text(encoding='utf-8')
             self.assertIn('sandbox/README', search_index)

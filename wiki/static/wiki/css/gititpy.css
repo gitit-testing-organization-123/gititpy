@@ -142,9 +142,13 @@ a {
 figure,
 .figure {
   box-sizing: border-box;
+  clear: both;
+  display: block;
+  margin: 1rem auto;
   max-width: 100%;
   overflow-x: auto;
   text-align: center;
+  width: 100%;
 }
 
 figcaption,
@@ -168,6 +172,24 @@ figure canvas,
   height: auto;
   max-width: 100%;
   background-color: white;
+}
+
+.figure img,
+.figure svg,
+.figure video,
+.figure canvas,
+figure img,
+figure svg,
+figure video,
+figure canvas {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.figure video,
+figure video {
+  width: 100%;
 }
 
 .wiki-content > img,
@@ -263,22 +285,20 @@ pre.matches {
 }
 
 .index li {
-  background-position: 0 0.25rem;
-  background-repeat: no-repeat;
+  align-items: baseline;
+  display: flex;
+  gap: 0.5rem;
   list-style: none;
-  padding-left: 1.5rem;
 }
 
 .index li + li {
   margin-top: 0.25rem;
 }
 
-.index li.page {
-  background-image: url(../img/icons/page.png);
-}
-
-.index li.folder {
-  background-image: url(../img/icons/folder.png);
+.index .bi {
+  color: var(--gititpy-muted);
+  flex: 0 0 1.1rem;
+  text-align: center;
 }
 
 .index a {

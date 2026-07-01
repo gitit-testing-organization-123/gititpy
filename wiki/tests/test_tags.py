@@ -35,6 +35,33 @@ class TagGenerationTests(unittest.TestCase):
             self.assertEqual(run.call_args.kwargs['env']['BASILISK'], str(source_root))
             self.assertEqual(run.call_args.kwargs['env']['BASILISK_INCLUDE_PATH'], str(source_root))
 
+    def test_qcc_tags_generation_can_use_separate_basilisk_root(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            sandbox_root = root / 'sandbox'
+            basilisk_root = root / 'basilisk' / 'src'
+            source_path = sandbox_root / 'user' / 'karman.c'
+            source_path.parent.mkdir(parents=True)
+            basilisk_root.mkdir(parents=True)
+            source_path.write_text('#include "embed.h"\n', encoding='utf-8')
+            completed = mock.Mock(returncode=0, stdout='', stderr='')
+            with mock.patch('wiki.tags.shutil.which', return_value='/nix/store/bin/qcc'):
+                with mock.patch('wiki.tags.subprocess.run', return_value=completed) as run:
+                    result = generate_qcc_tags(
+                        source_path,
+                        sandbox_root,
+                        basilisk_root=basilisk_root,
+                        include_roots=(sandbox_root, basilisk_root),
+                    )
+            self.assertTrue(result.generated)
+            self.assertEqual(run.call_args.args[0], ['/nix/store/bin/qcc', '-tags', 'user/karman.c'])
+            self.assertEqual(run.call_args.kwargs['cwd'], str(sandbox_root.resolve()))
+            self.assertEqual(run.call_args.kwargs['env']['BASILISK'], str(basilisk_root.resolve()))
+            self.assertEqual(
+                run.call_args.kwargs['env']['BASILISK_INCLUDE_PATH'],
+                f"{sandbox_root.resolve()}:{basilisk_root.resolve()}",
+            )
+
     def test_qcc_tags_generation_uses_source_relative_paths(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir) / ('long-source-root-' + 'x' * 80)

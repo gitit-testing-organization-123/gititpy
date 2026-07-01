@@ -6,12 +6,12 @@
     <ul>
       {% if directory_path %}
         <li class="folder">
-          <a class="updir" href="{{ parent_url }}">..</a>
+          <i class="bi bi-folder2-open" aria-hidden="true"></i><a class="updir" href="{{ parent_url }}">..</a>
         </li>
       {% endif %}
       {% for entry in entries %}
         <li class="{% if entry.is_dir %}folder{% else %}page{% endif %}">
-          <a href="{{ entry.href }}">{{ entry.name }}{% if entry.is_dir %}/{% endif %}</a>
+          <i class="bi {% if entry.is_dir %}bi-folder{% else %}bi-file-earmark-text{% endif %}" aria-hidden="true"></i><a href="{{ entry.href }}">{{ entry.name }}{% if entry.is_dir %}/{% endif %}</a>
         </li>
       {% else %}
         <li>No pages in this folder.</li>

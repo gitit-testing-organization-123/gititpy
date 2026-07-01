@@ -168,7 +168,13 @@ class StaticLinkTests(unittest.TestCase):
             with mock.patch('wiki.site.render_darcsit', return_value='<p>Rendered</p>'):
                 with mock.patch('wiki.site.generate_qcc_tags', return_value=QccTagsResult(generated=True)) as generate:
                     StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, jobs=1), output_dir=output).build()
-            generate.assert_called_once_with(source_path, source_root, 'qcc')
+            generate.assert_called_once_with(
+                source_path,
+                source_root,
+                'qcc',
+                basilisk_root=source_root,
+                include_roots=(source_root,),
+            )
 
     def test_static_sandbox_render_generates_qcc_tags(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -183,7 +189,45 @@ class StaticLinkTests(unittest.TestCase):
             with mock.patch('wiki.site.render_darcsit', return_value='<p>Rendered</p>'):
                 with mock.patch('wiki.site.generate_qcc_tags', return_value=QccTagsResult(generated=True)) as generate:
                     StaticSiteBuilder(config=SiteConfig(base_dir=root, wiki_root=wiki_root, sandbox_root=sandbox_root, build_source=False, jobs=1), output_dir=output).build()
-            generate.assert_called_once_with(source_path, sandbox_root, 'qcc')
+            generate.assert_called_once_with(
+                source_path,
+                sandbox_root,
+                'qcc',
+                basilisk_root=sandbox_root,
+                include_roots=(sandbox_root,),
+            )
+
+    def test_static_sandbox_tags_use_source_tree_as_basilisk_root_when_available(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / 'pages'
+            sandbox_root = root / 'sandbox'
+            source_root = root / 'basilisk' / 'src'
+            output = root / 'public'
+            WikiRepository(wiki_root).write_page('FrontPage', '# Front\n')
+            sandbox_root.mkdir(parents=True)
+            source_root.mkdir(parents=True)
+            source_path = sandbox_root / 'example.c'
+            source_path.write_text('int main(void) { return 0; }\n', encoding='utf-8')
+            with mock.patch('wiki.site.render_darcsit', return_value='<p>Rendered</p>'):
+                with mock.patch('wiki.site.generate_qcc_tags', return_value=QccTagsResult(generated=True)) as generate:
+                    StaticSiteBuilder(
+                        config=SiteConfig(
+                            base_dir=root,
+                            wiki_root=wiki_root,
+                            sandbox_root=sandbox_root,
+                            source_root=source_root,
+                            jobs=1,
+                        ),
+                        output_dir=output,
+                    ).build()
+            generate.assert_called_once_with(
+                source_path,
+                sandbox_root,
+                'qcc',
+                basilisk_root=source_root,
+                include_roots=(sandbox_root, source_root),
+            )
 
     def test_relative_source_links_rewrite_to_absolute_source_urls(self):
         with tempfile.TemporaryDirectory() as tmpdir:

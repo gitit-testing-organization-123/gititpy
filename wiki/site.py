@@ -359,7 +359,7 @@ class StaticSiteBuilder:
                 source,
                 rel,
                 path,
-                basilisk_root=browser.tree.root,
+                basilisk_root=self.darcsit_basilisk_root(browser),
                 display_path=f"/{browser.prefix}/{rel}",
             )
             context = self.base_context() | {
@@ -410,12 +410,11 @@ class StaticSiteBuilder:
 
     def source_breadcrumbs(self, browser: StaticTree, rel: str, include_leaf: bool):
         breadcrumbs = [
-            # SimpleNamespace(label="Home", href=self.urls.front_url(), active=False),
             SimpleNamespace(
                 label=browser.prefix,
                 href=None if not rel and not include_leaf else self.urls.tree_directory_url(browser.url_prefix, ""),
                 active=not rel and not include_leaf,
-            ),
+            )
         ]
         parts = PurePosixPath(rel).parts if rel else ()
         if not parts:
@@ -812,7 +811,13 @@ class StaticSiteBuilder:
     def generate_source_tags(self, browser: StaticTree, path: Path):
         if not self.config.generate_source_tags:
             return
-        result = generate_qcc_tags(path, browser.tree.root, self.config.qcc_command)
+        result = generate_qcc_tags(
+            path,
+            browser.tree.root,
+            self.config.qcc_command,
+            basilisk_root=self.qcc_basilisk_root(browser),
+            include_roots=self.qcc_include_roots(browser),
+        )
         if result.warning:
             if "command not found" in result.warning:
                 self.warn_once(f"qcc-missing:{self.config.qcc_command}", result.warning)
@@ -820,6 +825,25 @@ class StaticSiteBuilder:
                 self.warn(result.warning)
         elif result.generated:
             self.log(f"Generate qcc tags {path}.tags")
+
+    def primary_source_tree(self) -> StaticTree | None:
+        return next((tree for tree in self.source_trees if tree.prefix == "src"), None)
+
+    def qcc_basilisk_root(self, browser: StaticTree) -> Path:
+        primary = self.primary_source_tree()
+        if browser.prefix != "src" and primary is not None:
+            return primary.tree.root
+        return browser.tree.root
+
+    def qcc_include_roots(self, browser: StaticTree) -> tuple[Path, ...]:
+        roots = [browser.tree.root]
+        primary = self.primary_source_tree()
+        if primary is not None and primary.tree.root != browser.tree.root:
+            roots.append(primary.tree.root)
+        return tuple(roots)
+
+    def darcsit_basilisk_root(self, browser: StaticTree) -> Path:
+        return self.qcc_basilisk_root(browser)
 
     def rewrite_source_links(
         self,
@@ -885,16 +909,12 @@ class StaticSiteBuilder:
                 (PurePosixPath(current_source_path).parent / decoded).as_posix(),
                 decoded,
             ]
-            fallback = None
             for candidate in candidates:
                 rel = normalized_source_href_path(candidate)
                 if rel is None:
                     continue
-                fallback = fallback or rel
                 if self.is_renderable_source_rel(current_source_tree, rel):
                     return current_source_tree, rel
-            if fallback is not None:
-                return current_source_tree, fallback
         return None
 
     def is_renderable_source_rel(self, browser: StaticTree, rel: str) -> bool:

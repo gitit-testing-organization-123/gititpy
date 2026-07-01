@@ -73,6 +73,8 @@ def add_build_arguments(parser: argparse.ArgumentParser):
     parser.add_argument("--output", default=None, help="Directory for generated files.")
     parser.add_argument("--base-url", default=None, help="Optional URL prefix, e.g. /repository-name.")
     parser.add_argument("--artifacts-base-url", default=None, help="External base URL for /artifacts/... links.")
+    parser.add_argument("--artifact-root", default=None, help="Local source artifact tree used when rewriting artifact links.")
+    parser.add_argument("--sandbox-artifact-root", default=None, help="Local sandbox artifact tree used when rewriting artifact links.")
     parser.add_argument("--no-clean", action="store_true", help="Compatibility option; incremental builds no longer clean by default.")
     parser.add_argument("--force-rebuild", action="store_true", help="Ignore the incremental manifest and rebuild all generated files.")
     parser.add_argument("--source-root", default=None, help="Source tree to render under /src/. Defaults to BASE_DIR/basilisk/src when it exists.")
@@ -125,6 +127,10 @@ def apply_cli_overrides(config: SiteConfig, args: argparse.Namespace) -> SiteCon
         changes["base_url"] = args.base_url
     if args.artifacts_base_url is not None:
         changes["artifact_base_url"] = args.artifacts_base_url
+    if args.artifact_root is not None:
+        changes["artifact_root"] = Path(args.artifact_root)
+    if args.sandbox_artifact_root is not None:
+        changes["sandbox_artifact_root"] = Path(args.sandbox_artifact_root)
     if args.jobs is not None:
         changes["jobs"] = args.jobs
     if args.verbose is not None:

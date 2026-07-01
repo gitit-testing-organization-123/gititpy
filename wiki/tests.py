@@ -373,6 +373,88 @@ int main(void) { return 0; }
             self.assertFalse((stage_dir / "src" / "test" / "dirichlet" / "dirichlet").exists())
             self.assertFalse((stage_dir / "src" / "CMakeFiles" / "noise.txt").exists())
 
+    def test_artifacts_cli_stages_sandbox_from_separate_artifact_root(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            source_artifact_root = root / "basilisk" / "build" / "release" / "src"
+            sandbox_root = root / "sandbox"
+            sandbox_artifact_root = root / "sandbox-build"
+            source_artifact_dir = source_artifact_root / "test" / "vortex"
+            sandbox_artifact_dir = sandbox_artifact_root / "cases" / "drop"
+            stage_dir = root / "stage"
+            (sandbox_root / "cases").mkdir(parents=True)
+            source_artifact_dir.mkdir(parents=True)
+            sandbox_artifact_dir.mkdir(parents=True)
+            (sandbox_root / "cases" / "drop.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+            (source_artifact_dir / "vortex").write_bytes(b"binary")
+            (source_artifact_dir / "plot.png").write_bytes(b"source-png")
+            (sandbox_artifact_dir / "drop").write_bytes(b"binary")
+            (sandbox_artifact_dir / "plot.png").write_bytes(b"sandbox-png")
+
+            status = artifacts_main(
+                [
+                    "--base-dir",
+                    str(root),
+                    "--artifact-root",
+                    str(source_artifact_root),
+                    "--sandbox-root",
+                    str(sandbox_root),
+                    "--sandbox-artifact-root",
+                    str(sandbox_artifact_root),
+                    "--scope",
+                    "sandbox",
+                    "stage",
+                    "--dest",
+                    str(stage_dir),
+                ]
+            )
+
+            self.assertEqual(status, 0)
+            self.assertEqual((stage_dir / "sandbox" / "cases" / "drop" / "plot.png").read_bytes(), b"sandbox-png")
+            self.assertFalse((stage_dir / "sandbox" / "cases" / "drop" / "drop").exists())
+            self.assertFalse((stage_dir / "src" / "test" / "vortex" / "plot.png").exists())
+
+    def test_artifacts_cli_stages_source_and_sandbox_roots_disjointly(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            source_root = root / "basilisk" / "src"
+            source_artifact_root = root / "basilisk" / "build" / "release" / "src"
+            sandbox_root = root / "sandbox"
+            sandbox_artifact_root = root / "sandbox-build"
+            source_artifact_dir = source_artifact_root / "test" / "vortex"
+            sandbox_artifact_dir = sandbox_artifact_root / "cases" / "drop"
+            stage_dir = root / "stage"
+            (source_root / "test").mkdir(parents=True)
+            (sandbox_root / "cases").mkdir(parents=True)
+            source_artifact_dir.mkdir(parents=True)
+            sandbox_artifact_dir.mkdir(parents=True)
+            (source_root / "test" / "vortex.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+            (sandbox_root / "cases" / "drop.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+            (source_artifact_dir / "vortex").write_bytes(b"binary")
+            (source_artifact_dir / "plot.png").write_bytes(b"source-png")
+            (sandbox_artifact_dir / "drop").write_bytes(b"binary")
+            (sandbox_artifact_dir / "plot.png").write_bytes(b"sandbox-png")
+
+            status = artifacts_main(
+                [
+                    "--base-dir",
+                    str(root),
+                    "--artifact-root",
+                    str(source_artifact_root),
+                    "--sandbox-root",
+                    str(sandbox_root),
+                    "--sandbox-artifact-root",
+                    str(sandbox_artifact_root),
+                    "stage",
+                    "--dest",
+                    str(stage_dir),
+                ]
+            )
+
+            self.assertEqual(status, 0)
+            self.assertEqual((stage_dir / "src" / "test" / "vortex" / "plot.png").read_bytes(), b"source-png")
+            self.assertEqual((stage_dir / "sandbox" / "cases" / "drop" / "plot.png").read_bytes(), b"sandbox-png")
+
     def test_artifacts_cli_generates_plot_scripts(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -853,6 +935,37 @@ int main(void) {
             rendered = (output / "src" / "test" / "neumann.c" / "index.html").read_text(encoding="utf-8")
             self.assertIn('src="/artifacts/src/test/dirichlet/a.png?1782833204"', rendered)
             self.assertIn('href="other/movie.mp4"', rendered)
+
+    def test_static_sandbox_render_rewrites_cross_sibling_artifact_links(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            wiki_root = root / "pages"
+            sandbox_root = root / "sandbox"
+            sandbox_artifact_root = root / "sandbox-build"
+            output = root / "public"
+            WikiRepository(wiki_root).write_page("FrontPage", "# Front\n", "Create front")
+            (sandbox_root / "cases").mkdir(parents=True)
+            (sandbox_root / "cases" / "neumann.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+            (sandbox_artifact_root / "cases" / "dirichlet").mkdir(parents=True)
+            (sandbox_artifact_root / "cases" / "dirichlet" / "a.png").write_bytes(b"png")
+            rendered_content = '<img src="dirichlet/a.png?1782833204">'
+
+            with mock.patch("wiki.static_site.render_darcsit", return_value=rendered_content):
+                StaticSiteBuilder(
+                    config=SiteConfig(
+                        base_dir=root,
+                        wiki_root=wiki_root,
+                        sandbox_root=sandbox_root,
+                        sandbox_artifact_root=sandbox_artifact_root,
+                        artifact_base_url="/artifacts",
+                        build_source=False,
+                        jobs=1,
+                    ),
+                    output_dir=output,
+                ).build()
+
+            rendered = (output / "sandbox" / "cases" / "neumann.c.html").read_text(encoding="utf-8")
+            self.assertIn('src="/artifacts/sandbox/cases/dirichlet/a.png?1782833204"', rendered)
 
     def test_static_source_render_rewrites_absolute_source_artifact_links(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -163,14 +163,14 @@ def is_visible_path(root: Path, path: Path) -> bool:
     return ".git" not in rel.parts and not any(part.startswith(".") for part in rel.parts)
 
 
-def artifact_roots_from_config(config) -> list[ArtifactRoot]:
+def artifact_roots_from_config(config, include_source: bool = True, include_sandbox: bool = True) -> list[ArtifactRoot]:
     roots = []
-    source_root = config.resolved_source_root()
+    source_root = config.resolved_source_root() if include_source else None
     if source_root is not None:
         roots.append(ArtifactRoot("source", source_root, config.resolved_artifact_root(), "src"))
-    sandbox_root = config.resolved_sandbox_root()
+    sandbox_root = config.resolved_sandbox_root() if include_sandbox else None
     if sandbox_root is not None:
-        roots.append(ArtifactRoot("sandbox", sandbox_root, publish_prefix="sandbox"))
+        roots.append(ArtifactRoot("sandbox", sandbox_root, config.resolved_sandbox_artifact_root(), "sandbox"))
     return roots
 
 

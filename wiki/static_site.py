@@ -585,45 +585,55 @@ class StaticSiteBuilder:
         if rel_parts[0] == artifact_stem:
             return (PurePosixPath(current_artifact_rel_dir) / PurePosixPath(*rel_parts[1:])).as_posix()
 
-        sibling_artifact = self.sibling_source_artifact_path(rel_path, current_artifact_rel_dir)
+        sibling_artifact = self.sibling_artifact_path(rel_path, current_artifact_rel_dir)
         if sibling_artifact is not None:
             return sibling_artifact
         return None
 
-    def sibling_source_artifact_path(self, rel_path: str, current_artifact_rel_dir: str) -> str | None:
+    def sibling_artifact_path(self, rel_path: str, current_artifact_rel_dir: str) -> str | None:
         current_dir = PurePosixPath(current_artifact_rel_dir)
-        if not current_dir.parts or current_dir.parts[0] != "src":
+        if not current_dir.parts or current_dir.parts[0] not in {"src", "sandbox"}:
             return None
         candidate = current_dir.parent / PurePosixPath(rel_path)
         candidate_path = candidate.as_posix()
-        if self.source_artifact_exists(candidate_path):
+        if self.artifact_exists(candidate_path):
             return candidate_path
         return None
 
-    def source_artifact_exists(self, artifact_path: str) -> bool:
+    def artifact_exists(self, artifact_path: str) -> bool:
         normalized = normalized_relative_url_path(artifact_path)
         if normalized is None:
             return False
         parts = PurePosixPath(normalized).parts
-        if not parts or parts[0] != "src":
+        if not parts or parts[0] not in {"src", "sandbox"}:
             return False
         rel = Path(*parts[1:])
 
         roots = []
-        configured_root = self.config.resolved_artifact_root()
-        if configured_root is not None:
-            roots.append(configured_root)
-        default_root = self.config.base_dir / "basilisk" / "build" / "release" / "src"
-        if default_root.exists():
-            roots.append(default_root)
+        if parts[0] == "src":
+            configured_root = self.config.resolved_artifact_root()
+            if configured_root is not None:
+                roots.append(configured_root)
+            default_root = self.config.base_dir / "basilisk" / "build" / "release" / "src"
+            if default_root.exists():
+                roots.append(default_root)
+        else:
+            configured_root = self.config.resolved_sandbox_artifact_root()
+            if configured_root is not None:
+                roots.append(configured_root)
 
         for root in roots:
             candidate = root / rel
             if candidate.is_file() or candidate.is_symlink():
                 return True
 
-        if self.source_tree is not None:
+        if parts[0] == "src" and self.source_tree is not None:
             candidate = self.source_tree.root / rel
+            if candidate.is_file() or candidate.is_symlink():
+                return True
+
+        if parts[0] == "sandbox" and self.sandbox_repo is not None:
+            candidate = self.sandbox_repo.root / rel
             if candidate.is_file() or candidate.is_symlink():
                 return True
 

@@ -21,6 +21,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--source-root", default=None, help="Source tree to scan. Defaults to BASE_DIR/basilisk/src when it exists.")
     parser.add_argument("--sandbox-root", default=None, help="Sandbox tree to scan. Defaults to BASE_DIR/sandbox when it exists.")
     parser.add_argument("--artifact-root", default=None, help="Tree containing generated artifacts for source files.")
+    parser.add_argument("--sandbox-artifact-root", default=None, help="Tree containing generated artifacts for sandbox files.")
+    parser.add_argument(
+        "--scope",
+        choices=("all", "source", "sandbox"),
+        default="all",
+        help="Artifact tree to operate on. Defaults to all.",
+    )
 
     subparsers = parser.add_subparsers(dest="command")
     list_parser = subparsers.add_parser("list", help="List detected artifact-producing C files.")
@@ -59,21 +66,24 @@ def main(argv: list[str] | None = None) -> int:
         changes["sandbox_root"] = Path(args.sandbox_root)
     if args.artifact_root is not None:
         changes["artifact_root"] = Path(args.artifact_root)
+    if args.sandbox_artifact_root is not None:
+        changes["sandbox_artifact_root"] = Path(args.sandbox_artifact_root)
     if changes:
         config = replace_config(config, **changes)
 
     if args.command == "list":
-        return list_artifacts(config, include_empty=args.all, as_json=args.json)
+        return list_artifacts(config, scope=args.scope, include_empty=args.all, as_json=args.json)
     if args.command == "stage":
-        return stage(config, Path(args.dest))
+        return stage(config, Path(args.dest), scope=args.scope)
     if args.command == "manifest":
-        return manifest(config, Path(args.output) if args.output else None)
+        return manifest(config, scope=args.scope, output=Path(args.output) if args.output else None)
     if args.command == "plots":
         if args.plots_command == "list":
-            return list_plot_artifacts(config, as_json=args.json)
+            return list_plot_artifacts(config, scope=args.scope, as_json=args.json)
         if args.plots_command == "generate":
             return generate_plots(
                 config,
+                scope=args.scope,
                 gnuplot_command=args.gnuplot_command,
                 python_command=args.python_command,
                 png_terminal=args.png_terminal,
@@ -85,8 +95,8 @@ def main(argv: list[str] | None = None) -> int:
     return 2
 
 
-def list_artifacts(config, include_empty: bool = False, as_json: bool = False) -> int:
-    jobs = discover_artifact_jobs(artifact_roots_from_config(config), include_empty=include_empty)
+def list_artifacts(config, scope: str = "all", include_empty: bool = False, as_json: bool = False) -> int:
+    jobs = discover_artifact_jobs(scoped_artifact_roots(config, scope), include_empty=include_empty)
     if as_json:
         print(jobs_to_json(jobs))
         return 0
@@ -110,19 +120,32 @@ def list_artifacts(config, include_empty: bool = False, as_json: bool = False) -
     return 0
 
 
-def stage(config, destination: Path) -> int:
-    artifact_root = config.resolved_artifact_root()
-    if artifact_root is not None:
-        copied = stage_artifact_tree(artifact_root, destination, publish_prefix="src")
-    else:
-        jobs = discover_artifact_jobs(artifact_roots_from_config(config))
-        copied = stage_artifacts(jobs, destination)
+def stage(config, destination: Path, scope: str = "all") -> int:
+    copied = 0
+    unstaged_roots = []
+
+    if scope in {"all", "source"}:
+        artifact_root = config.resolved_artifact_root()
+        if artifact_root is not None:
+            copied += stage_artifact_tree(artifact_root, destination, publish_prefix="src")
+        else:
+            unstaged_roots.extend(artifact_roots_from_config(config, include_source=True, include_sandbox=False))
+
+    if scope in {"all", "sandbox"}:
+        sandbox_artifact_root = config.resolved_sandbox_artifact_root()
+        if sandbox_artifact_root is not None:
+            copied += stage_artifact_tree(sandbox_artifact_root, destination, publish_prefix="sandbox")
+        else:
+            unstaged_roots.extend(artifact_roots_from_config(config, include_source=False, include_sandbox=True))
+
+    if unstaged_roots:
+        copied += stage_artifacts(discover_artifact_jobs(unstaged_roots), destination)
     print(f"Copied {copied} artifact file(s) to {destination}.")
     return 0
 
 
-def manifest(config, output: Path | None = None) -> int:
-    jobs = discover_artifact_jobs(artifact_roots_from_config(config))
+def manifest(config, scope: str = "all", output: Path | None = None) -> int:
+    jobs = discover_artifact_jobs(scoped_artifact_roots(config, scope))
     data = manifest_to_json(artifact_manifest(jobs))
     if output is None:
         print(data)
@@ -133,8 +156,8 @@ def manifest(config, output: Path | None = None) -> int:
     return 0
 
 
-def list_plot_artifacts(config, as_json: bool = False) -> int:
-    jobs = [job for job in discover_artifact_jobs(artifact_roots_from_config(config)) if job.derived_artifacts]
+def list_plot_artifacts(config, scope: str = "all", as_json: bool = False) -> int:
+    jobs = [job for job in discover_artifact_jobs(scoped_artifact_roots(config, scope)) if job.derived_artifacts]
     if as_json:
         print(jobs_to_json(jobs))
         return 0
@@ -147,8 +170,8 @@ def list_plot_artifacts(config, as_json: bool = False) -> int:
     return 0
 
 
-def generate_plots(config, gnuplot_command: str, python_command: str | None, png_terminal: str) -> int:
-    jobs = [job for job in discover_artifact_jobs(artifact_roots_from_config(config)) if job.derived_artifacts]
+def generate_plots(config, scope: str, gnuplot_command: str, python_command: str | None, png_terminal: str) -> int:
+    jobs = [job for job in discover_artifact_jobs(scoped_artifact_roots(config, scope)) if job.derived_artifacts]
     result = generate_plot_artifacts(
         jobs,
         gnuplot_command=gnuplot_command,
@@ -162,6 +185,14 @@ def generate_plots(config, gnuplot_command: str, python_command: str | None, png
     for failure in result.failures:
         print(f"warning: {failure}")
     return 1 if result.failures else 0
+
+
+def scoped_artifact_roots(config, scope: str):
+    return artifact_roots_from_config(
+        config,
+        include_source=scope in {"all", "source"},
+        include_sandbox=scope in {"all", "sandbox"},
+    )
 
 
 if __name__ == "__main__":

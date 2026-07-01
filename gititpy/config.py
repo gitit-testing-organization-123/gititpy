@@ -17,6 +17,7 @@ class SiteConfig:
     base_url: str = ""
     artifact_base_url: str = ""
     artifact_root: Path | None = None
+    sandbox_artifact_root: Path | None = None
     build_source: bool = True
     generate_source_tags: bool = True
     qcc_command: str = "qcc"
@@ -51,6 +52,11 @@ class SiteConfig:
         if self.artifact_root is None:
             return None
         return self.resolve_path(self.artifact_root)
+
+    def resolved_sandbox_artifact_root(self) -> Path | None:
+        if self.sandbox_artifact_root is None:
+            return None
+        return self.resolve_path(self.sandbox_artifact_root)
 
     def resolved_template_roots(self) -> tuple[Path, ...]:
         if self.template_roots:
@@ -92,7 +98,8 @@ def load_config(base_dir: Path, config_path: Path | None = None) -> SiteConfig:
         mathjax_url=site.get("mathjax_url", DEFAULT_MATHJAX_URL),
         base_url=site.get("base_url", ""),
         artifact_base_url=artifacts.get("base_url", ""),
-        artifact_root=optional_path(artifacts.get("local_root") or artifacts.get("root")),
+        artifact_root=optional_path(artifacts.get("source_local_root") or artifacts.get("local_root") or artifacts.get("root")),
+        sandbox_artifact_root=optional_path(artifacts.get("sandbox_local_root")),
         table_of_contents=site.get("table_of_contents", True),
         wiki_root=optional_path(paths.get("wiki_root")),
         sandbox_root=optional_path(paths.get("sandbox_root")),
@@ -125,6 +132,7 @@ def replace_config(config: SiteConfig, **changes) -> SiteConfig:
         "base_url": config.base_url,
         "artifact_base_url": config.artifact_base_url,
         "artifact_root": config.artifact_root,
+        "sandbox_artifact_root": config.sandbox_artifact_root,
         "build_source": config.build_source,
         "generate_source_tags": config.generate_source_tags,
         "qcc_command": config.qcc_command,
